@@ -52,4 +52,4 @@ Current project structure:
 └── vite.config.ts
 ```
 
-Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while ensuring high performance and responsiveness and adding a chunk design to the world generation, each chunk being 16x16 tiles for better scalability. Each chunk should have unique designs based on the seed, but they also need to seamlessly connect with adjacent chunks with impressive transitions, it should be impossible to see where one chunk ends and another begins. Set the chunk render distance to 3 chunks in each direction for optimal performance.
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while...

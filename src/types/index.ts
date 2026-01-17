@@ -6,7 +6,9 @@ export type {
   Tile, 
   WorldConfig, 
   TerrainThresholds, 
-  DifficultySettings 
+  DifficultySettings,
+  Chunk,
+  ChunkKey
 } from './world.types';
 
 export { 

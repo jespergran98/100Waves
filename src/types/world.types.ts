@@ -17,9 +17,9 @@ export interface Tile {
 }
 
 export interface WorldConfig {
-  width: number;
-  height: number;
+  chunkSize: number;
   tileSize: number;
+  viewDistance: number; // How many chunks to render around the player
 }
 
 export interface TerrainThresholds {
@@ -34,6 +34,17 @@ export interface DifficultySettings {
   waterPercentage: number;
   stonePercentage: number;
   resourceMultiplier: number;
+}
+
+export interface Chunk {
+  x: number;
+  y: number;
+  tiles: Tile[][];
+}
+
+export interface ChunkKey {
+  x: number;
+  y: number;
 }
 
 export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
@@ -58,7 +69,7 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
-  width: 64,
-  height: 64,
-  tileSize: 16
+  chunkSize: 32,        // 32x32 tiles per chunk
+  tileSize: 24,         // Larger tiles for zoomed in view
+  viewDistance: 2       // Load chunks 2 chunks away from camera
 };

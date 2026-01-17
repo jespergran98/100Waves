@@ -22,6 +22,7 @@
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+  touch-action: none;
 }
 
 .world-canvas.dragging {
@@ -127,6 +128,11 @@
   backdrop-filter: blur(10px);
   z-index: var(--z-game-ui);
   animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.world-header > * {
+  pointer-events: auto;
 }
 
 @keyframes slideDown {
@@ -233,6 +239,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   z-index: var(--z-game-ui);
   animation: slideLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+  pointer-events: none;
 }
 
 @keyframes slideLeft {
@@ -355,6 +362,7 @@
   backdrop-filter: blur(10px);
   z-index: var(--z-game-ui);
   animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards;
+  pointer-events: none;
 }
 
 @keyframes slideUp {
@@ -411,6 +419,9 @@
 
   .controls-hint {
     bottom: var(--space-4);
+  }
+
+  .hint-text {
     font-size: var(--text-2xs);
   }
 }
