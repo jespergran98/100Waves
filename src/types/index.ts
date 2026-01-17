@@ -5,7 +5,6 @@ export type {
   WorldData, 
   Tile, 
   WorldConfig, 
-  TerrainThresholds, 
   DifficultySettings,
   Chunk,
   ChunkKey

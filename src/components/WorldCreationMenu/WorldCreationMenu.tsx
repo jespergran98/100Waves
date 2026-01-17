@@ -92,17 +92,17 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationMenuProps) =>
   const difficultyConfig: Record<Difficulty, { label: string; description: string; icon: string }> = {
     easy: {
       label: 'EASY',
-      description: 'More land, abundant resources, relaxed survival',
+      description: 'More resources, slower enemy spawns, forgiving combat',
       icon: '◇'
     },
     medium: {
       label: 'MEDIUM',
-      description: 'Balanced terrain and resources for most players',
+      description: 'Balanced resources and enemies for standard gameplay',
       icon: '◇◇'
     },
     hard: {
       label: 'HARD',
-      description: 'Limited land, scarce resources, brutal survival',
+      description: 'Scarce resources, aggressive enemies, brutal survival',
       icon: '◇◇◇'
     }
   };
@@ -193,7 +193,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationMenuProps) =>
               </button>
               <span className="input-border" />
             </div>
-            <p className="form-hint">Seed determines terrain generation - same seed = same world</p>
+            <p className="form-hint">Same seed always generates identical terrain</p>
           </div>
 
           {/* Difficulty Selection */}
@@ -225,6 +225,9 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationMenuProps) =>
                 </button>
               ))}
             </div>
+            <p className="form-hint" style={{ textAlign: 'center', marginTop: '8px' }}>
+              Difficulty affects resources and enemies, not terrain
+            </p>
           </div>
         </div>
 
@@ -251,7 +254,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationMenuProps) =>
         <footer className="creation-footer">
           <div className="footer-hint">
             <span className="hint-icon">ℹ</span>
-            <span className="hint-text">Your world will be procedurally generated</span>
+            <span className="hint-text">Your world will be procedurally generated from the seed</span>
           </div>
         </footer>
       </div>

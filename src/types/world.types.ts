@@ -19,21 +19,7 @@ export interface Tile {
 export interface WorldConfig {
   chunkSize: number;
   tileSize: number;
-  viewDistance: number; // How many chunks to render around the player
-}
-
-export interface TerrainThresholds {
-  water: number;
-  sand: number;
-  land: number;
-  stone: number;
-}
-
-export interface DifficultySettings {
-  landPercentage: number;
-  waterPercentage: number;
-  stonePercentage: number;
-  resourceMultiplier: number;
+  viewDistance: number;
 }
 
 export interface Chunk {
@@ -47,29 +33,38 @@ export interface ChunkKey {
   y: number;
 }
 
+// Difficulty now only affects gameplay mechanics (resources, enemy behavior, etc.)
+// Map generation is identical across all difficulties
+export interface DifficultySettings {
+  resourceMultiplier: number;    // How many resources spawn
+  enemySpawnRate: number;         // How frequently enemies spawn
+  enemyHealthMultiplier: number;  // Enemy health scaling
+  playerDamageMultiplier: number; // Player damage output
+}
+
 export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
   easy: {
-    landPercentage: 0.56,      // 56% land - comfortable gameplay
-    waterPercentage: 0.28,     // 28% water - strategic placement
-    stonePercentage: 0.16,     // 16% stone+sand combined
-    resourceMultiplier: 1.5    // More resources available
+    resourceMultiplier: 1.5,
+    enemySpawnRate: 0.7,
+    enemyHealthMultiplier: 0.8,
+    playerDamageMultiplier: 1.2
   },
   medium: {
-    landPercentage: 0.47,      // 47% land - balanced challenge
-    waterPercentage: 0.36,     // 36% water - moderate obstacles
-    stonePercentage: 0.17,     // 17% stone+sand combined
-    resourceMultiplier: 1.0    // Standard resources
+    resourceMultiplier: 1.0,
+    enemySpawnRate: 1.0,
+    enemyHealthMultiplier: 1.0,
+    playerDamageMultiplier: 1.0
   },
   hard: {
-    landPercentage: 0.38,      // 38% land - survival mode
-    waterPercentage: 0.45,     // 45% water - dangerous terrain
-    stonePercentage: 0.17,     // 17% stone+sand combined
-    resourceMultiplier: 0.6    // Reduced resources
+    resourceMultiplier: 0.6,
+    enemySpawnRate: 1.4,
+    enemyHealthMultiplier: 1.3,
+    playerDamageMultiplier: 0.9
   }
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   chunkSize: 32,        // 32x32 tiles per chunk
-  tileSize: 24,         // Larger tiles for zoomed in view
+  tileSize: 24,         // Tile size in pixels
   viewDistance: 2       // Load chunks 2 chunks away from camera
 };

@@ -1,5 +1,4 @@
 import type { WorldData, Tile, TileType, WorldConfig, Chunk } from '../types/world.types';
-import { DIFFICULTY_SETTINGS } from '../types/world.types';
 import { SeededRandom } from './seededRandom';
 
 export class WorldGenerator {
@@ -14,6 +13,7 @@ export class WorldGenerator {
 
   /**
    * Generate a single chunk at the given chunk coordinates
+   * Map generation is now identical regardless of difficulty
    */
   generateChunk(chunkX: number, chunkY: number): Chunk {
     const tiles: Tile[][] = [];
@@ -46,26 +46,25 @@ export class WorldGenerator {
   }
 
   /**
-   * Get tile type based on noise functions and difficulty
+   * Get tile type based on noise functions
+   * Consistent terrain generation regardless of difficulty
    */
   private getTileType(x: number, y: number): TileType {
-    const settings = DIFFICULTY_SETTINGS[this.worldData.difficulty];
-    
     // Multi-octave noise for terrain variation
     const noise1 = this.noise(x * 0.05, y * 0.05, 0);
     const noise2 = this.noise(x * 0.1, y * 0.1, 1000) * 0.5;
     const noise3 = this.noise(x * 0.2, y * 0.2, 2000) * 0.25;
     const combinedNoise = (noise1 + noise2 + noise3) / 1.75;
 
-    // Moisture map for biomes
+    // Moisture map for biome variation
     const moisture = this.noise(x * 0.03, y * 0.03, 5000);
 
-    // Determine terrain type based on noise and settings
-    if (combinedNoise < -0.3 + (settings.waterPercentage * 0.5)) {
+    // Consistent terrain thresholds for all difficulties
+    if (combinedNoise < -0.2) {
       return 'water';
-    } else if (combinedNoise < -0.15 + (settings.waterPercentage * 0.3)) {
+    } else if (combinedNoise < -0.05) {
       return 'sand';
-    } else if (combinedNoise > 0.5 - (settings.stonePercentage * 0.5)) {
+    } else if (combinedNoise > 0.45) {
       return 'stone';
     } else {
       // Vary land based on moisture
