@@ -7,7 +7,8 @@ export type {
   WorldConfig, 
   DifficultySettings,
   Chunk,
-  ChunkKey
+  ChunkKey,
+  Block
 } from './world.types';
 
 export { 

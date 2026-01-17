@@ -21,16 +21,26 @@ export interface WorldData {
   difficulty: Difficulty;
 }
 
+export interface Block {
+  type: TileType;
+  x: number;
+  y: number;
+  blendFactor?: number; // 0-1 for biome blending
+}
+
 export interface Tile {
   type: TileType;
   x: number;
   y: number;
-  variant?: number; // For visual variety within tile types
+  variant?: number;
+  blocks: Block[][]; // 16x16 grid of blocks
 }
 
 export interface WorldConfig {
   chunkSize: number;
   tileSize: number;
+  blockSize: number; // New: size of each block within a tile
+  blocksPerTile: number; // New: 16x16 blocks per tile
   viewDistance: number;
 }
 
@@ -75,7 +85,9 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
-  chunkSize: 16,        // Smaller chunks for more detail
-  tileSize: 32,         // Larger tiles for better visibility
-  viewDistance: 3       // Load more chunks for smoother exploration
+  chunkSize: 16,
+  tileSize: 32,
+  blockSize: 2,        // Each block is 2x2 pixels
+  blocksPerTile: 16,   // 16x16 blocks per tile
+  viewDistance: 3
 };

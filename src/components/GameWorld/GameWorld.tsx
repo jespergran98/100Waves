@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { WorldGenerator } from '../../utils/worldGenerator';
-import type { WorldData, Chunk, TileType } from '../../types/world.types';
+import type { WorldData, Chunk, TileType, Block } from '../../types/world.types';
 import { DEFAULT_WORLD_CONFIG } from '../../types/world.types';
 import './GameWorld.css';
 
@@ -61,7 +61,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   const loadTimeoutRef = useRef<number | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
 
-  const { chunkSize, tileSize, viewDistance } = useMemo(() => DEFAULT_WORLD_CONFIG, []);
+  const { chunkSize, tileSize, blockSize, blocksPerTile, viewDistance } = useMemo(() => DEFAULT_WORLD_CONFIG, []);
   const chunkPixelSize = useMemo(() => chunkSize * tileSize, [chunkSize, tileSize]);
 
   const getChunkKey = useCallback((cx: number, cy: number): string => `${cx},${cy}`, []);
@@ -178,7 +178,31 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     }, 50);
   }, [loadVisibleChunks]);
 
-  // Enhanced pixel art rendering
+  /**
+   * Get color for a block with variation
+   */
+  const getBlockColor = useCallback((block: Block, tileVariant: number): string => {
+    const colors = TILE_COLORS[block.type];
+    const baseColor = colors[tileVariant % colors.length];
+    
+    if (!baseColor) return '#000000';
+    
+    // Add subtle variation based on block position
+    const hash = (block.x * 73856093) ^ (block.y * 19349663);
+    const variation = ((hash & 0xff) / 255) * 0.08 - 0.04; // ±4% brightness
+    
+    // Parse color and apply variation
+    const hex = baseColor.replace('#', '');
+    const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) * (1 + variation)));
+    const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) * (1 + variation)));
+    const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) * (1 + variation)));
+    
+    return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+  }, []);
+
+  /**
+   * Enhanced pixel art rendering with 16x16 block system
+   */
   const renderWorld = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d', { alpha: false, desynchronized: true });
@@ -204,7 +228,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     // Disable image smoothing for crisp pixels
     ctx.imageSmoothingEnabled = false;
 
-    // Render chunks with pixel-perfect tiles
+    // Render chunks with 16x16 block-based tiles
     chunks.forEach((chunk) => {
       const chunkScreenX = chunk.x * chunkPixelSize + cameraOffset.x;
       const chunkScreenY = chunk.y * chunkPixelSize + cameraOffset.y;
@@ -218,40 +242,63 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         return;
       }
 
-      // Render tiles with variants
+      // Render tiles with their 16x16 block grids
       for (let y = 0; y < chunkSize; y++) {
         const row = chunk.tiles[y];
         if (!row) continue;
         
-        const screenY = chunkScreenY + y * tileSize;
-        if (screenY + tileSize < 0 || screenY > height) continue;
+        const tileScreenY = chunkScreenY + y * tileSize;
+        if (tileScreenY + tileSize < 0 || tileScreenY > height) continue;
         
         for (let x = 0; x < chunkSize; x++) {
           const tile = row[x];
           if (!tile) continue;
           
-          const screenX = chunkScreenX + x * tileSize;
-          if (screenX + tileSize < 0 || screenX > width) continue;
+          const tileScreenX = chunkScreenX + x * tileSize;
+          if (tileScreenX + tileSize < 0 || tileScreenX > width) continue;
 
-          const colors = TILE_COLORS[tile.type];
-          const variant = tile.variant ?? 0;
-          const tileColor = colors[variant % colors.length];
-          
-          if (tileColor) {
-            ctx.fillStyle = tileColor;
-            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+          const tileVariant = tile.variant ?? 0;
+
+          // Render each block within the tile (16x16 grid)
+          for (let by = 0; by < blocksPerTile; by++) {
+            const blockRow = tile.blocks[by];
+            if (!blockRow) continue;
             
-            // Add subtle pixel texture for certain tiles
-            if (tile.type === 'grass' || tile.type === 'dirt' || tile.type === 'gravel') {
-              addPixelDetailRef.current(ctx, screenX, screenY, tile, tileSize);
+            for (let bx = 0; bx < blocksPerTile; bx++) {
+              const block = blockRow[bx];
+              if (!block) continue;
+              
+              const blockScreenX = tileScreenX + bx * blockSize;
+              const blockScreenY = tileScreenY + by * blockSize;
+              
+              // Skip if block is off-screen
+              if (blockScreenX + blockSize < 0 || blockScreenX > width ||
+                  blockScreenY + blockSize < 0 || blockScreenY > height) {
+                continue;
+              }
+              
+              // Get block color with variation
+              const blockColor = getBlockColor(block, tileVariant);
+              ctx.fillStyle = blockColor;
+              ctx.fillRect(blockScreenX, blockScreenY, blockSize, blockSize);
+              
+              // Add subtle pixel detail for certain biomes
+              if (block.blendFactor !== undefined && block.blendFactor < 0.5) {
+                // Blocks near biome boundaries get a subtle highlight
+                const hash = (block.x * 73856093) ^ (block.y * 19349663);
+                if ((hash & 0xff) < 40) {
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+                  ctx.fillRect(blockScreenX, blockScreenY, blockSize, blockSize);
+                }
+              }
             }
           }
         }
       }
     });
 
-    // Subtle grid for chunk boundaries
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+    // Subtle grid for chunk boundaries (optional - can be removed)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.01)';
     ctx.lineWidth = 1;
     
     const chunkGridSize = chunkPixelSize;
@@ -269,34 +316,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     }
     ctx.stroke();
 
-  }, [cameraOffset, chunkPixelSize, chunkSize, tileSize]);
-
-  // Add pixel-level detail to tiles
-  const addPixelDetailRef = useRef((
-    ctx: CanvasRenderingContext2D, 
-    x: number, 
-    y: number, 
-    tile: { type: TileType; x: number; y: number; variant?: number },
-    size: number
-  ) => {
-    const pixelSize = 4;
-    const hash = (tile.x * 73856093) ^ (tile.y * 19349663);
-    
-    // Add 1-2 darker pixels for texture
-    if ((hash & 0xff) < 80) {
-      const px = x + ((hash >> 8) % (size / pixelSize)) * pixelSize;
-      const py = y + ((hash >> 16) % (size / pixelSize)) * pixelSize;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-      ctx.fillRect(px, py, pixelSize, pixelSize);
-    }
-    
-    if ((hash & 0xff00) < 20480) {
-      const px = x + ((hash >> 10) % (size / pixelSize)) * pixelSize;
-      const py = y + ((hash >> 18) % (size / pixelSize)) * pixelSize;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.fillRect(px, py, pixelSize, pixelSize);
-    }
-  });
+  }, [cameraOffset, chunkPixelSize, chunkSize, tileSize, blockSize, blocksPerTile, getBlockColor]);
 
   // Initialize
   useEffect(() => {
@@ -425,6 +445,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
   const totalChunks = chunksRef.current.size;
   const totalTiles = worldStats ? Object.values(worldStats).reduce((sum, val) => sum + val, 0) : 0;
+  const totalBlocks = totalTiles * blocksPerTile * blocksPerTile;
 
   // Group terrain types for display
   const terrainGroups = useMemo(() => {
@@ -459,7 +480,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
             <div className="loading-spinner" />
             <h2 className="loading-title">GENERATING WORLD</h2>
             <p className="loading-subtitle">Seed: {worldData.seed}</p>
-            <p className="loading-detail">Procedural terrain generation...</p>
+            <p className="loading-detail">Procedural terrain generation with block-based biomes...</p>
           </div>
         </div>
       )}
@@ -480,7 +501,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
                   <span className="meta-divider">•</span>
                   <span className="meta-item">{totalChunks} Chunks</span>
                   <span className="meta-divider">•</span>
-                  <span className="meta-item">{totalTiles.toLocaleString()} Tiles</span>
+                  <span className="meta-item">{totalBlocks.toLocaleString()} Blocks</span>
                 </div>
               </div>
             </div>
@@ -524,7 +545,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
           <div className="controls-hint">
             <span className="hint-icon">⚠️</span>
-            <span className="hint-text">Drag to explore • Zoom: {tileSize}px tiles</span>
+            <span className="hint-text">Drag to explore • 16x16 block-based terrain</span>
           </div>
         </>
       )}

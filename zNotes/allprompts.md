@@ -419,4 +419,94 @@ Current project structure:
 └── vite.config.ts
 ```
 
-Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while reworking the design: Each tile/pixel, should now contain 16x16 blocks. (Similar to how a chunk in Minecraft exists fo 16 by 16 blocks). These should be logically placed, where blocks between biomes smoothly transition in between the two biomes. If for example a water biome meets a wasteland biome, it should gradually transition with proper curves. Imagine the current squares being mini chunks, consisting of 16 blocks matching their biome, and fading at the edges between biomes. Each mini chunk should use a clean design, consisting of the 16 by 16 blocks.
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while reworking the design: Each tile/pixel, should now contain 16x16 blocks. (Similar to how a chunk in Minecraft exists fo 16 by 16 blocks). These should be logically placed, where blocks between biomes smoothly transition in between the two biomes. If for example a water biome meets a wasteland biome, it should gradually transition with proper curves. Imagine the current squares being mini chunks, consisting of 16 blocks matching their biome, and fading at the edges between biomes. Each mini chunk should use a clean design, consisting of the 16 by 16 blocks. PROVIDE THE UPDATED CODE IN SEPARATE CODE BLOCKS FOLLOWING THE SAME FILE STRUCTURE AS THE ORIGINAL.
+
+---
+
+I am creating a professional top-down zombie survival game using React, TypeScript, and Vite with modern best practices. The project follows clean folder structure standards. Use CSS variables from global.css for all styling. The website must be fully responsive with a clean, modern design and simple logic. Always provide complete file contents for any modified or new files. The design must be in the highest tier of web development, while keeping the code clean, streamlined, structured and perfect.
+
+Current project structure:
+
+```
+100Waves/
+├── node_modules/
+├── public/
+│   └── assets/
+│
+├── src/
+│   ├── components/
+│   │   ├── MainMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── MainMenu.css
+│   │   │   └── MainMenu.tsx
+│   │   │
+│   │   ├── WorldCreationMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── WorldCreationMenu.css
+│   │   │   └── WorldCreationMenu.tsx
+│   │   │
+│   │   └── GameWorld/
+│   │       ├── index.ts
+│   │       ├── GameWorld.css
+│   │       └── GameWorld.tsx
+│   │
+│   ├── hooks/
+│   │   ├── useAudioFeedback.ts
+│   │   └── useParticles.ts
+│   │
+│   ├── types/
+│   │   ├── index.ts
+│   │   └── world.types.ts
+│   │
+│   ├── utils/
+│   │   ├── seededRandom.ts
+│   │   └── worldGenerator.ts
+│   │
+│   ├── App.tsx
+│   ├── global.css
+│   └── main.tsx
+│
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+└── vite.config.ts
+```
+
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while ensuring the map is MUCH further zoomed in. Also completely rework the biomes/blocks, these should instead be the following biomes in the game:
+
+grasslands
+plains
+forest
+mines
+river
+ocean
+deep ocean
+mountain
+caves
+Mangrove
+desert
+coral reef
+wastelands
+savanna
+badlands
+Oasis
+wooded badlands
+swamp
+snowy plains
+frozen ocean
+deep frozen ocean
+taiga
+snowy taiga
+Tundra
+jungle
+Ashlands
+Molten Wastes
+
+Certain biomes are more rare than others, and use unique generation.
+Add a coordinate system. The user (which is yet to be implemented) will always spawn in x 0, y 0.
+Be extremely creative when adding these new biomes and ensure amazing world creation.
+
+Provide the updated code in separate code blocks following the project structure.
