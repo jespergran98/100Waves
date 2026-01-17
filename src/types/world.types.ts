@@ -38,22 +38,22 @@ export interface DifficultySettings {
 
 export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
   easy: {
-    landPercentage: 0.80,
-    waterPercentage: 0.12,
-    stonePercentage: 0.08,
-    resourceMultiplier: 1.5
+    landPercentage: 0.56,      // 56% land - comfortable gameplay
+    waterPercentage: 0.28,     // 28% water - strategic placement
+    stonePercentage: 0.16,     // 16% stone+sand combined
+    resourceMultiplier: 1.5    // More resources available
   },
   medium: {
-    landPercentage: 0.70,
-    waterPercentage: 0.20,
-    stonePercentage: 0.10,
-    resourceMultiplier: 1.0
+    landPercentage: 0.47,      // 47% land - balanced challenge
+    waterPercentage: 0.36,     // 36% water - moderate obstacles
+    stonePercentage: 0.17,     // 17% stone+sand combined
+    resourceMultiplier: 1.0    // Standard resources
   },
   hard: {
-    landPercentage: 0.60,
-    waterPercentage: 0.28,
-    stonePercentage: 0.12,
-    resourceMultiplier: 0.7
+    landPercentage: 0.38,      // 38% land - survival mode
+    waterPercentage: 0.45,     // 45% water - dangerous terrain
+    stonePercentage: 0.17,     // 17% stone+sand combined
+    resourceMultiplier: 0.6    // Reduced resources
   }
 };
 
