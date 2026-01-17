@@ -1,0 +1,43 @@
+// Re-export all types for centralized imports
+export type { 
+  TileType, 
+  Difficulty, 
+  WorldData, 
+  Tile, 
+  WorldConfig, 
+  TerrainThresholds, 
+  DifficultySettings 
+} from './world.types';
+
+export { 
+  DIFFICULTY_SETTINGS, 
+  DEFAULT_WORLD_CONFIG 
+} from './world.types';
+
+// Additional types for better type safety
+export interface GameState {
+  type: 'menu' | 'worldCreationMenu' | 'playing' | 'settings';
+}
+
+export interface AudioContextRef {
+  current: AudioContext | null;
+}
+
+export interface MousePosition {
+  x: number;
+  y: number;
+}
+
+export interface CameraOffset {
+  x: number;
+  y: number;
+}
+
+export interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  delay: number;
+  duration: number;
+  size: number;
+}

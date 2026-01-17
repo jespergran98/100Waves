@@ -1,21 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { WorldData, Difficulty } from '../../types/world.types';
 import './WorldCreationMenu.css';
 
-interface WorldCreationProps {
+interface WorldCreationMenuProps {
   onCreateWorld: (worldData: WorldData) => void;
   onBack: () => void;
 }
 
-export interface WorldData {
-  name: string;
-  seed: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-}
-
-const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
+const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationMenuProps) => {
   const [worldName, setWorldName] = useState('');
   const [seed, setSeed] = useState('');
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [focusedElement, setFocusedElement] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -64,7 +59,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
     playSound(900);
   }, [playSound]);
 
-  const handleDifficultySelect = useCallback((selectedDifficulty: 'easy' | 'medium' | 'hard') => {
+  const handleDifficultySelect = useCallback((selectedDifficulty: Difficulty) => {
     setDifficulty(selectedDifficulty);
     playSound(1000);
   }, [playSound]);
@@ -94,21 +89,21 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
     }, 150);
   }, [onBack, playSound]);
 
-  const difficultyConfig = {
+  const difficultyConfig: Record<Difficulty, { label: string; description: string; icon: string }> = {
     easy: {
       label: 'EASY',
-      description: 'Relaxed survival with more resources',
-      icon: '●'
+      description: 'More land, abundant resources, relaxed survival',
+      icon: '◇'
     },
     medium: {
       label: 'MEDIUM',
-      description: 'Balanced challenge for most players',
-      icon: '●●'
+      description: 'Balanced terrain and resources for most players',
+      icon: '◇◇'
     },
     hard: {
       label: 'HARD',
-      description: 'Brutal survival for veterans',
-      icon: '●●●'
+      description: 'Limited land, scarce resources, brutal survival',
+      icon: '◇◇◇'
     }
   };
 
@@ -198,7 +193,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
               </button>
               <span className="input-border" />
             </div>
-            <p className="form-hint">Leave empty for random generation</p>
+            <p className="form-hint">Seed determines terrain generation - same seed = same world</p>
           </div>
 
           {/* Difficulty Selection */}
@@ -208,7 +203,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
               <span className="label-text">DIFFICULTY</span>
             </label>
             <div className="difficulty-grid">
-              {(Object.keys(difficultyConfig) as Array<keyof typeof difficultyConfig>).map((diff) => (
+              {(Object.keys(difficultyConfig) as Difficulty[]).map((diff) => (
                 <button
                   key={diff}
                   className={`difficulty-card ${difficulty === diff ? 'selected' : ''} ${focusedElement === diff ? 'focused' : ''}`}
@@ -256,7 +251,7 @@ const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
         <footer className="creation-footer">
           <div className="footer-hint">
             <span className="hint-icon">ℹ</span>
-            <span className="hint-text">Your world will be saved automatically</span>
+            <span className="hint-text">Your world will be procedurally generated</span>
           </div>
         </footer>
       </div>
