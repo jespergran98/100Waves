@@ -1,6 +1,17 @@
-// World generation and tile types
+// World generation and tile types with enhanced detail
 
-export type TileType = 'land' | 'water' | 'stone' | 'sand';
+export type TileType = 
+  | 'grass' 
+  | 'dirt' 
+  | 'water' 
+  | 'deep_water'
+  | 'sand' 
+  | 'stone' 
+  | 'gravel'
+  | 'forest'
+  | 'dead_tree'
+  | 'concrete'
+  | 'asphalt';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -14,6 +25,7 @@ export interface Tile {
   type: TileType;
   x: number;
   y: number;
+  variant?: number; // For visual variety within tile types
 }
 
 export interface WorldConfig {
@@ -33,13 +45,12 @@ export interface ChunkKey {
   y: number;
 }
 
-// Difficulty now only affects gameplay mechanics (resources, enemy behavior, etc.)
-// Map generation is identical across all difficulties
+// Difficulty settings for gameplay mechanics
 export interface DifficultySettings {
-  resourceMultiplier: number;    // How many resources spawn
-  enemySpawnRate: number;         // How frequently enemies spawn
-  enemyHealthMultiplier: number;  // Enemy health scaling
-  playerDamageMultiplier: number; // Player damage output
+  resourceMultiplier: number;
+  enemySpawnRate: number;
+  enemyHealthMultiplier: number;
+  playerDamageMultiplier: number;
 }
 
 export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
@@ -64,7 +75,7 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
-  chunkSize: 32,        // 32x32 tiles per chunk
-  tileSize: 24,         // Tile size in pixels
-  viewDistance: 2       // Load chunks 2 chunks away from camera
+  chunkSize: 16,        // Smaller chunks for more detail
+  tileSize: 32,         // Larger tiles for better visibility
+  viewDistance: 3       // Load more chunks for smoother exploration
 };

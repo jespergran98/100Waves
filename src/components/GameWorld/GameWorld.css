@@ -11,7 +11,7 @@
 }
 
 /* ==========================================
-   CANVAS - ENHANCED VISUALS
+   CANVAS - PIXEL-PERFECT RENDERING
    ========================================== */
 
 .world-canvas {
@@ -23,6 +23,7 @@
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   touch-action: none;
+  user-select: none;
 }
 
 .world-canvas.dragging {
@@ -30,13 +31,13 @@
 }
 
 /* ==========================================
-   LOADING OVERLAY - APOCALYPTIC THEME
+   LOADING OVERLAY - ENHANCED
    ========================================== */
 
 .loading-overlay {
   position: absolute;
   inset: 0;
-  background: #1a1c1e;
+  background: linear-gradient(135deg, #1a1c1e 0%, #14161a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,8 +54,8 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(0, 0, 0, 0.03) 2px,
-      rgba(0, 0, 0, 0.03) 4px
+      rgba(0, 0, 0, 0.04) 2px,
+      rgba(0, 0, 0, 0.04) 4px
     );
   pointer-events: none;
   animation: scanlines 8s linear infinite;
@@ -74,7 +75,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-6);
   animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 1;
 }
@@ -93,7 +94,7 @@
 .loading-spinner {
   width: 80px;
   height: 80px;
-  border: 4px solid rgba(255, 255, 255, 0.08);
+  border: 4px solid rgba(255, 255, 255, 0.06);
   border-top-color: var(--accent-500);
   border-right-color: var(--accent-600);
   border-radius: 50%;
@@ -132,8 +133,24 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
+.loading-detail {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-tertiary);
+  margin: 0;
+  opacity: 0.7;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
 /* ==========================================
-   HEADER - TACTICAL HUD STYLE
+   HEADER - TACTICAL HUD
    ========================================== */
 
 .world-header {
@@ -280,11 +297,13 @@
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-wide);
   color: var(--text-tertiary);
+  flex-wrap: wrap;
 }
 
 .meta-item {
   text-transform: uppercase;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 .meta-divider {
@@ -293,14 +312,14 @@
 }
 
 /* ==========================================
-   STATS PANEL - TACTICAL DATA DISPLAY
+   STATS PANEL - ENHANCED TERRAIN DATA
    ========================================== */
 
 .stats-panel {
   position: absolute;
   top: var(--space-24);
   right: var(--space-6);
-  width: 280px;
+  width: 300px;
   background: rgba(20, 20, 20, 0.95);
   border: 2px solid rgba(0, 255, 128, 0.25);
   border-radius: var(--radius-lg);
@@ -357,7 +376,7 @@
 
 .stats-title {
   font-family: var(--font-display);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-wider);
   color: var(--accent-400);
@@ -400,31 +419,39 @@
   );
 }
 
-.stat-item.land .stat-bar {
+.stat-item.vegetation .stat-bar {
   background: linear-gradient(
     to right,
-    rgba(45, 74, 43, 0.7),
-    rgba(45, 74, 43, 0.25)
+    rgba(61, 90, 61, 0.7),
+    rgba(61, 90, 61, 0.25)
+  );
+}
+
+.stat-item.wasteland .stat-bar {
+  background: linear-gradient(
+    to right,
+    rgba(168, 153, 104, 0.5),
+    rgba(168, 153, 104, 0.2)
   );
 }
 
 .stat-item.water .stat-bar {
   background: linear-gradient(
     to right,
-    rgba(26, 77, 92, 0.7),
-    rgba(26, 77, 92, 0.25)
+    rgba(45, 77, 102, 0.7),
+    rgba(45, 77, 102, 0.25)
   );
 }
 
-.stat-item.sand .stat-bar {
+.stat-item.urban .stat-bar {
   background: linear-gradient(
     to right,
-    rgba(194, 166, 107, 0.4),
-    rgba(194, 166, 107, 0.15)
+    rgba(122, 122, 122, 0.5),
+    rgba(122, 122, 122, 0.2)
   );
 }
 
-.stat-item.stone .stat-bar {
+.stat-item.rocky .stat-bar {
   background: linear-gradient(
     to right,
     rgba(90, 90, 90, 0.5),
@@ -455,7 +482,7 @@
 }
 
 /* ==========================================
-   CONTROLS HINT - WARNING STYLE
+   CONTROLS HINT
    ========================================== */
 
 .controls-hint {
@@ -494,10 +521,10 @@
 .hint-icon {
   font-size: var(--text-base);
   filter: drop-shadow(0 0 5px rgba(255, 200, 0, 0.5));
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulseIcon 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
+@keyframes pulseIcon {
   0%, 100% { 
     opacity: 1;
     filter: drop-shadow(0 0 5px rgba(255, 200, 0, 0.5));
@@ -536,22 +563,23 @@
   }
 
   .world-meta {
-    font-size: var(--text-2xs);
+    font-size: 10px;
   }
 
   .stats-panel {
     top: var(--space-20);
     right: var(--space-4);
-    width: 240px;
+    width: 260px;
     padding: var(--space-4);
   }
 
   .controls-hint {
     bottom: var(--space-4);
+    padding: var(--space-2) var(--space-4);
   }
 
   .hint-text {
-    font-size: var(--text-2xs);
+    font-size: 10px;
   }
 }
 
@@ -573,13 +601,16 @@
   }
 
   .world-meta {
-    flex-direction: column;
-    align-items: flex-start;
+    font-size: 9px;
     gap: var(--space-1);
   }
 
   .meta-divider {
     display: none;
+  }
+
+  .meta-item {
+    font-size: 9px;
   }
 }
 
@@ -596,19 +627,11 @@
     transition-duration: 0.01ms !important;
   }
 
-  .loading-spinner {
-    animation: none !important;
-  }
-
+  .loading-spinner,
   .world-header,
   .stats-panel,
   .controls-hint,
-  .loading-content {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
+  .loading-content,
   .hint-icon {
     animation: none !important;
   }

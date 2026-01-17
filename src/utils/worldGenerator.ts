@@ -5,7 +5,7 @@ export class WorldGenerator {
   private config: WorldConfig;
   private noiseCache: Map<string, number> = new Map();
   private randomCache: Map<string, number> = new Map();
-  private readonly CACHE_LIMIT = 10000; // Prevent unlimited memory growth
+  private readonly CACHE_LIMIT = 15000;
 
   constructor(worldData: WorldData, config: WorldConfig) {
     this.worldData = worldData;
@@ -13,17 +13,15 @@ export class WorldGenerator {
   }
 
   /**
-   * Generate a single chunk at the given chunk coordinates
+   * Generate a single chunk with enhanced terrain detail
    */
   generateChunk(chunkX: number, chunkY: number): Chunk {
     const { chunkSize } = this.config;
     const tiles: Tile[][] = new Array(chunkSize);
     
-    // Calculate world-space offset for this chunk
     const worldOffsetX = chunkX * chunkSize;
     const worldOffsetY = chunkY * chunkSize;
 
-    // Pre-calculate all noise values for this chunk (more cache-friendly)
     for (let y = 0; y < chunkSize; y++) {
       const row: Tile[] = new Array(chunkSize);
       const worldY = worldOffsetY + y;
@@ -31,10 +29,12 @@ export class WorldGenerator {
       for (let x = 0; x < chunkSize; x++) {
         const worldX = worldOffsetX + x;
         
+        const tileType = this.getTileType(worldX, worldY);
         row[x] = {
-          type: this.getTileType(worldX, worldY),
+          type: tileType,
           x: worldX,
-          y: worldY
+          y: worldY,
+          variant: this.getTileVariant(worldX, worldY, tileType)
         };
       }
       tiles[y] = row;
@@ -44,36 +44,105 @@ export class WorldGenerator {
   }
 
   /**
-   * Get tile type based on noise functions (optimized)
+   * Enhanced tile type determination with more variety
    */
   private getTileType(x: number, y: number): TileType {
-    // Multi-octave noise with pre-calculated weights
-    const noise1 = this.noise(x * 0.05, y * 0.05, 0);
-    const noise2 = this.noise(x * 0.1, y * 0.1, 1000);
-    const noise3 = this.noise(x * 0.2, y * 0.2, 2000);
+    // Multi-scale noise for natural terrain
+    const scale1 = 0.08; // Large features (biomes)
+    const scale2 = 0.15; // Medium features (terrain variation)
+    const scale3 = 0.3;  // Small features (detail)
     
-    // Weighted combination (weights sum to 1.75)
-    const combinedNoise = (noise1 + noise2 * 0.5 + noise3 * 0.25) / 1.75;
-
-    // Quick terrain check (most common case first)
-    if (combinedNoise >= -0.05 && combinedNoise <= 0.45) {
-      // Land biome - check moisture only when needed
-      const moisture = this.noise(x * 0.03, y * 0.03, 5000);
-      return moisture > 0.6 ? 'stone' : 'land';
+    const noise1 = this.noise(x * scale1, y * scale1, 0);
+    const noise2 = this.noise(x * scale2, y * scale2, 1000);
+    const noise3 = this.noise(x * scale3, y * scale3, 2000);
+    
+    // Combine noise layers with different weights
+    const terrain = (noise1 * 0.5 + noise2 * 0.3 + noise3 * 0.2);
+    
+    // Moisture and temperature for biome variation
+    const moisture = this.noise(x * 0.05, y * 0.05, 3000);
+    const temperature = this.noise(x * 0.04, y * 0.04, 4000);
+    
+    // Feature noise for structures and special terrain
+    const urbanNoise = this.noise(x * 0.12, y * 0.12, 5000);
+    const forestNoise = this.noise(x * 0.18, y * 0.18, 6000);
+    
+    // Deep water (lakes, rivers)
+    if (terrain < -0.35) {
+      return 'deep_water';
     }
-
-    // Water
-    if (combinedNoise < -0.2) return 'water';
     
-    // Sand
-    if (combinedNoise < -0.05) return 'sand';
+    // Shallow water (shores, marshes)
+    if (terrain < -0.15) {
+      return 'water';
+    }
     
-    // Stone
-    return 'stone';
+    // Sandy beaches near water
+    if (terrain < -0.05 && terrain > -0.15) {
+      return 'sand';
+    }
+    
+    // Urban ruins (concrete/asphalt)
+    if (urbanNoise > 0.55 && terrain > -0.05 && terrain < 0.3) {
+      return this.getRandomValue(x, y, 7000) > 0.3 ? 'concrete' : 'asphalt';
+    }
+    
+    // Dense forest areas
+    if (forestNoise > 0.45 && moisture > 0.2 && terrain > 0.0 && terrain < 0.4) {
+      return 'forest';
+    }
+    
+    // Dead trees in wasteland
+    if (forestNoise > 0.5 && moisture < -0.3 && terrain > 0.1) {
+      return 'dead_tree';
+    }
+    
+    // Rocky/mountainous terrain
+    if (terrain > 0.5) {
+      return temperature > 0.2 ? 'stone' : 'gravel';
+    }
+    
+    // Gravel patches
+    if (terrain > 0.35 && moisture < -0.1) {
+      return 'gravel';
+    }
+    
+    // Dirt patches (worn paths, cleared areas)
+    if (moisture < -0.4 || (urbanNoise > 0.4 && urbanNoise < 0.55)) {
+      return 'dirt';
+    }
+    
+    // Default: grass
+    return 'grass';
   }
 
   /**
-   * Optimized Perlin-like noise with caching
+   * Get variant number for visual diversity
+   */
+  private getTileVariant(x: number, y: number, type: TileType): number {
+    const hash = this.getRandomValue(x, y, 8000);
+    
+    // Different tile types have different variant counts
+    const variantCounts: Record<TileType, number> = {
+      grass: 6,
+      dirt: 4,
+      water: 4,
+      deep_water: 3,
+      sand: 4,
+      stone: 5,
+      gravel: 4,
+      forest: 3,
+      dead_tree: 3,
+      concrete: 4,
+      asphalt: 3
+    };
+    
+    const count = variantCounts[type] || 1;
+    return Math.floor((hash + 1) * 0.5 * count);
+  }
+
+  /**
+   * Perlin-like noise with improved caching
    */
   private noise(x: number, y: number, offset: number = 0): number {
     const cacheKey = `${x.toFixed(2)},${y.toFixed(2)},${offset}`;
@@ -81,7 +150,6 @@ export class WorldGenerator {
     const cached = this.noiseCache.get(cacheKey);
     if (cached !== undefined) return cached;
 
-    // Cache size management
     if (this.noiseCache.size > this.CACHE_LIMIT) {
       this.clearOldestCache();
     }
@@ -91,17 +159,14 @@ export class WorldGenerator {
     const xf = x - X;
     const yf = y - Y;
 
-    // Get corner values
     const n00 = this.getRandomValue(X, Y, offset);
     const n10 = this.getRandomValue(X + 1, Y, offset);
     const n01 = this.getRandomValue(X, Y + 1, offset);
     const n11 = this.getRandomValue(X + 1, Y + 1, offset);
 
-    // Smooth interpolation
     const u = this.fade(xf);
     const v = this.fade(yf);
 
-    // Bilinear interpolation
     const nx0 = n00 + u * (n10 - n00);
     const nx1 = n01 + u * (n11 - n01);
     const result = nx0 + v * (nx1 - nx0);
@@ -111,7 +176,7 @@ export class WorldGenerator {
   }
 
   /**
-   * Get a random value for coordinates with caching
+   * Get cached random value for coordinates
    */
   private getRandomValue(x: number, y: number, offset: number): number {
     const key = `${x},${y},${offset}`;
@@ -119,9 +184,7 @@ export class WorldGenerator {
     let value = this.randomCache.get(key);
     if (value !== undefined) return value;
 
-    // Use a simple hash instead of creating new SeededRandom instances
     value = this.hash(x, y, offset);
-    
     this.randomCache.set(key, value);
     return value;
   }
@@ -130,12 +193,10 @@ export class WorldGenerator {
    * Fast hash function for pseudo-random values
    */
   private hash(x: number, y: number, offset: number): number {
-    // Mix the seed with coordinates
     const seedHash = this.hashString(this.worldData.seed);
     let n = (x * 374761393) + (y * 668265263) + (offset * 1911520717) + seedHash;
     n = (n ^ (n >>> 13)) * 1274126177;
     n = n ^ (n >>> 16);
-    // Normalize to [-1, 1]
     return ((n & 0x7fffffff) / 0x7fffffff) * 2 - 1;
   }
 
@@ -152,20 +213,19 @@ export class WorldGenerator {
   }
 
   /**
-   * Smooth fade function (5th-order interpolation)
+   * Smooth fade function
    */
   private fade(t: number): number {
     return t * t * t * (t * (t * 6 - 15) + 10);
   }
 
   /**
-   * Clear oldest half of cache when limit reached
+   * Clear oldest cache entries
    */
   private clearOldestCache(): void {
     const entries = Array.from(this.noiseCache.entries());
     const halfSize = Math.floor(entries.length / 2);
     
-    // Keep second half (most recent)
     this.noiseCache.clear();
     for (let i = halfSize; i < entries.length; i++) {
       const entry = entries[i];
@@ -176,14 +236,21 @@ export class WorldGenerator {
   }
 
   /**
-   * Get statistics for a set of chunks (optimized)
+   * Get terrain statistics
    */
   getChunkStatistics(chunks: Chunk[]): Record<TileType, number> {
     const stats: Record<TileType, number> = {
-      land: 0,
+      grass: 0,
+      dirt: 0,
       water: 0,
+      deep_water: 0,
+      sand: 0,
       stone: 0,
-      sand: 0
+      gravel: 0,
+      forest: 0,
+      dead_tree: 0,
+      concrete: 0,
+      asphalt: 0
     };
 
     for (const chunk of chunks) {
