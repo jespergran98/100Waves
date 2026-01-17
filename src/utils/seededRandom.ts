@@ -1,6 +1,6 @@
 /**
  * Optimized seeded random number generator
- * Uses xorshift128 algorithm for better performance
+ * Uses xorshift128 algorithm for performance
  */
 export class SeededRandom {
   private state: number;
@@ -20,11 +20,11 @@ export class SeededRandom {
       hash ^= str.charCodeAt(i);
       hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
     }
-    return hash >>> 0; // Convert to unsigned 32-bit integer
+    return hash >>> 0;
   }
 
   /**
-   * Next random number using xorshift algorithm (faster than LCG)
+   * Next random number using xorshift algorithm
    */
   next(): number {
     let x = this.state;
@@ -32,7 +32,6 @@ export class SeededRandom {
     x ^= x >>> 17;
     x ^= x << 5;
     this.state = x;
-    // Normalize to [0, 1)
     return ((x >>> 0) / 0xffffffff);
   }
 
@@ -53,7 +52,7 @@ export class SeededRandom {
   /**
    * Get random boolean with optional probability
    */
-  boolean(probability: number = 0.5): boolean {
+  boolean(probability = 0.5): boolean {
     return this.next() < probability;
   }
 
@@ -71,13 +70,19 @@ export class SeededRandom {
   shuffle<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
       const j = this.int(0, i + 1);
-      const temp = array[i];
-      const temp2 = array[j];
-      if (temp !== undefined && temp2 !== undefined) {
-        array[i] = temp2;
-        array[j] = temp;
-      }
+      [array[i], array[j]] = [array[j]!, array[i]!];
     }
     return array;
+  }
+
+  /**
+   * Generate random Gaussian (normal) distribution
+   * Uses Box-Muller transform
+   */
+  gaussian(mean = 0, stdDev = 1): number {
+    const u1 = this.next();
+    const u2 = this.next();
+    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return z0 * stdDev + mean;
   }
 }

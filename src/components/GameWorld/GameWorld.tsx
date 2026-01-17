@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { WorldGenerator } from '../../utils/world/worldGenerator';
 import type { WorldData, Chunk, TileType } from '../../types/world.types';
-import { DEFAULT_WORLD_CONFIG } from '../../types/world.types';
+import { DEFAULT_WORLD_CONFIG, BIOME_THREAT, BIOME_RARITY } from '../../types/world.types';
 import { useCamera } from '../../hooks/useCamera';
 import { RenderOptimizer } from '../../rendering/RenderOptimizer';
 import WorldCanvas from './components/WorldCanvas';
@@ -23,12 +23,12 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [worldStats, setWorldStats] = useState<Record<TileType, number> | null>(null);
   const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0 });
+  const [currentBiome, setCurrentBiome] = useState<TileType>('grasslands');
   const loadTimeoutRef = useRef<number | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const isLoadingRef = useRef(false);
 
   const { chunkSize, tileSize, blockSize, blocksPerTile } = DEFAULT_WORLD_CONFIG;
-  const chunkPixelSize = useMemo(() => chunkSize * tileSize, [chunkSize, tileSize]);
 
   // Initialize camera centered on spawn
   const { camera, isDragging, startDrag, updateDrag, endDrag, setCamera } = useCamera({
@@ -45,13 +45,29 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
   // Convert screen position to world coordinates
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
-    const blockPixelSize = blockSize;
-    const worldX = Math.floor((screenX - camera.x) / blockPixelSize);
-    const worldY = Math.floor((screenY - camera.y) / blockPixelSize);
+    const worldX = Math.floor((screenX - camera.x) / blockSize);
+    const worldY = Math.floor((screenY - camera.y) / blockSize);
     return { x: worldX, y: worldY };
   }, [camera, blockSize]);
 
-  // Update player coordinates based on camera center
+  // Get biome at current position
+  const getBiomeAtPosition = useCallback((worldX: number, worldY: number): TileType => {
+    const tileX = Math.floor(worldX / blocksPerTile);
+    const tileY = Math.floor(worldY / blocksPerTile);
+    const chunkX = Math.floor(tileX / chunkSize);
+    const chunkY = Math.floor(tileY / chunkSize);
+    
+    const chunk = chunksRef.current.get(`${chunkX},${chunkY}`);
+    if (!chunk) return 'grasslands';
+    
+    const localTileX = ((tileX % chunkSize) + chunkSize) % chunkSize;
+    const localTileY = ((tileY % chunkSize) + chunkSize) % chunkSize;
+    
+    const tile = chunk.tiles[localTileY]?.[localTileX];
+    return tile?.type ?? 'grasslands';
+  }, [chunkSize, blocksPerTile]);
+
+  // Update player coordinates and current biome
   useEffect(() => {
     if (!canvasSizeRef.current.width) return;
     
@@ -59,7 +75,10 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const centerY = canvasSizeRef.current.height / 2;
     const coords = screenToWorld(centerX, centerY);
     setPlayerCoords(coords);
-  }, [camera, screenToWorld]);
+    
+    const biome = getBiomeAtPosition(coords.x, coords.y);
+    setCurrentBiome(biome);
+  }, [camera, screenToWorld, getBiomeAtPosition]);
 
   const loadVisibleChunks = useCallback(() => {
     if (isLoadingRef.current) return;
@@ -77,7 +96,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       canvasSizeRef.current.height
     );
 
-    // Extend bounds slightly to preload chunks before they're visible
+    // Extend bounds for preloading
     const extendedBounds = {
       minChunkX: bounds.minChunkX - 1,
       minChunkY: bounds.minChunkY - 1,
@@ -108,10 +127,10 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         const updated = prev ? { ...prev } : {
           grasslands: 0, plains: 0, forest: 0, mines: 0, river: 0,
           ocean: 0, deep_ocean: 0, mountain: 0, caves: 0, mangrove: 0,
-          desert: 0, coral_reef: 0, wastelands: 0, savanna: 0, badlands: 0,
-          oasis: 0, wooded_badlands: 0, swamp: 0, snowy_plains: 0,
+          desert: 0, coral_reef: 0, wasteland: 0, badlands: 0, canyon: 0,
+          oasis: 0, swamp: 0, snowy_plains: 0, ruins: 0, bunker: 0,
           frozen_ocean: 0, deep_frozen_ocean: 0, taiga: 0, snowy_taiga: 0,
-          tundra: 0, jungle: 0, ashlands: 0, molten_wastes: 0
+          tundra: 0, jungle: 0, dead_zone: 0, infection_site: 0
         };
         newChunks.forEach(chunk => {
           chunk.tiles.forEach(row => {
@@ -124,7 +143,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       });
     }
 
-    // Clean up far away chunks
+    // Clean up far chunks
     const toDelete: string[] = [];
     chunks.forEach((_, key) => {
       if (!visibleKeys.has(key)) {
@@ -150,7 +169,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     loadTimeoutRef.current = window.setTimeout(() => {
       loadVisibleChunks();
       loadTimeoutRef.current = null;
-    }, 16); // Reduced from 50ms to 16ms (one frame)
+    }, 16);
   }, [loadVisibleChunks]);
 
   // Initialize world
@@ -160,7 +179,6 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const generator = new WorldGenerator(worldData, DEFAULT_WORLD_CONFIG);
     generatorRef.current = generator;
 
-    // Set initial canvas size
     canvasSizeRef.current = {
       width: window.innerWidth,
       height: window.innerHeight
@@ -238,7 +256,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
             <div className="loading-spinner" />
             <h2 className="loading-title">GENERATING WORLD</h2>
             <p className="loading-subtitle">Seed: {worldData.seed}</p>
-            <p className="loading-detail">27 unique biomes • Infinite procedural terrain...</p>
+            <p className="loading-detail">27 unique biomes • Infinite procedural terrain</p>
           </div>
         </div>
       )}
@@ -248,6 +266,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
           <WorldHUD
             worldData={worldData}
             playerCoords={playerCoords}
+            currentBiome={currentBiome}
             onBackToMenu={onBackToMenu}
           />
 

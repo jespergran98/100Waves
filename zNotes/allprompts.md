@@ -643,3 +643,73 @@ Current project structure:
 Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while ensuring the world generation and biomes looks as stunning as possible. The world map should look extremely well designed for my top-down zombie survival game.
 
 Provide the updated code in separate code blocks following the project structure.
+
+---
+
+I am creating a professional top-down zombie survival game using React, TypeScript, and Vite with modern best practices. The project follows clean folder structure standards. Use CSS variables from global.css for all styling. The website must be fully responsive with a clean, modern design and simple logic. Always provide complete file contents for any modified or new files. The design must be in the highest tier of web development, while keeping the code clean, streamlined, structured and perfect.
+
+Current project structure:
+
+```
+100Waves/
+├── node_modules/
+├── public/
+│   └── assets/
+│
+├── src/
+│   ├── components/
+│   │   ├── MainMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── MainMenu.css
+│   │   │   └── MainMenu.tsx
+│   │   │
+│   │   ├── WorldCreationMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── WorldCreationMenu.css
+│   │   │   └── WorldCreationMenu.tsx
+│   │   │
+│   │   └── GameWorld/
+│   │       ├── index.ts
+│   │       ├── GameWorld.css
+│   │       ├── GameWorld.tsx
+│   │       └── components/
+│   │           ├── WorldCanvas.tsx
+│   │           ├── WorldHUD.tsx
+│   │           └── WorldStats.tsx
+│   │
+│   ├── hooks/
+│   │   ├── useAudioFeedback.ts
+│   │   ├── useParticles.ts
+│   │   └── useCamera.ts
+│   │
+│   ├── types/
+│   │   ├── index.ts
+│   │   ├── world.types.ts
+│   │   └── rendering.types.ts
+│   │
+│   ├── utils/
+│   │   ├── seededRandom.ts
+│   │   └── world/
+│   │       ├── worldGenerator.ts
+│   │       ├── biomeConfig.ts
+│   │       └── noiseGenerator.ts
+│   │
+│   ├── rendering/
+│   │   ├── ChunkRenderer.ts
+│   │   ├── TextureCache.ts
+│   │   └── RenderOptimizer.ts
+│   │
+│   ├── App.tsx
+│   ├── global.css
+│   └── main.tsx
+│
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+└── vite.config.ts
+```
+
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while streamlining, cleaning up and perfectionalizing these files, making the world work PERFECTLY for a zombie survival game.
