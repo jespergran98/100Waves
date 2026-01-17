@@ -19,18 +19,11 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const animationFrameRef = useRef<number | null>(null);
+  const lastLoadedChunksRef = useRef<Set<string>>(new Set());
 
   // Get chunk key from chunk coordinates
   const getChunkKey = useCallback((chunkX: number, chunkY: number): string => {
     return `${chunkX},${chunkY}`;
-  }, []);
-
-  // Convert world position to chunk coordinates
-  const worldToChunk = useCallback((worldX: number, worldY: number): { x: number; y: number } => {
-    return {
-      x: Math.floor(worldX / DEFAULT_WORLD_CONFIG.chunkSize),
-      y: Math.floor(worldY / DEFAULT_WORLD_CONFIG.chunkSize)
-    };
   }, []);
 
   // Get visible chunk coordinates based on camera position
@@ -41,22 +34,21 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const { chunkSize, tileSize, viewDistance } = DEFAULT_WORLD_CONFIG;
     const chunkPixelSize = chunkSize * tileSize;
 
-    // Calculate which chunks are visible
-    // The camera offset tells us where world (0,0) appears on screen
-    // To find which world coordinates are visible, we need to inverse this
-    const worldLeft = -offsetX;
-    const worldTop = -offsetY;
-    const worldRight = canvas.width - offsetX;
-    const worldBottom = canvas.height - offsetY;
+    // Calculate the world coordinates of the viewport corners
+    const viewportLeft = -offsetX;
+    const viewportTop = -offsetY;
+    const viewportRight = canvas.width - offsetX;
+    const viewportBottom = canvas.height - offsetY;
 
-    const startX = Math.floor(worldLeft / chunkPixelSize) - viewDistance;
-    const startY = Math.floor(worldTop / chunkPixelSize) - viewDistance;
-    const endX = Math.ceil(worldRight / chunkPixelSize) + viewDistance;
-    const endY = Math.ceil(worldBottom / chunkPixelSize) + viewDistance;
+    // Convert to chunk coordinates with buffer
+    const minChunkX = Math.floor(viewportLeft / chunkPixelSize) - viewDistance;
+    const minChunkY = Math.floor(viewportTop / chunkPixelSize) - viewDistance;
+    const maxChunkX = Math.floor(viewportRight / chunkPixelSize) + viewDistance;
+    const maxChunkY = Math.floor(viewportBottom / chunkPixelSize) + viewDistance;
 
     const visible = new Set<string>();
-    for (let cy = startY; cy <= endY; cy++) {
-      for (let cx = startX; cx <= endX; cx++) {
+    for (let cy = minChunkY; cy <= maxChunkY; cy++) {
+      for (let cx = minChunkX; cx <= maxChunkX; cx++) {
         visible.add(getChunkKey(cx, cy));
       }
     }
@@ -72,13 +64,20 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
     if (!generator) return;
 
+    // Check if we actually need to load new chunks
+    const needsUpdate = Array.from(visibleKeys).some(key => !chunks.has(key));
+    if (!needsUpdate && visibleKeys.size === lastLoadedChunksRef.current.size) {
+      return;
+    }
+
     let newChunksGenerated = false;
 
+    // Generate missing chunks
     visibleKeys.forEach(key => {
       if (!chunks.has(key)) {
-        const parts = key.split(',');
-        const cx = parseInt(parts[0] ?? '0', 10);
-        const cy = parseInt(parts[1] ?? '0', 10);
+        const [cxStr, cyStr] = key.split(',');
+        const cx = parseInt(cxStr ?? '0', 10);
+        const cy = parseInt(cyStr ?? '0', 10);
         
         if (!isNaN(cx) && !isNaN(cy)) {
           const chunk = generator.generateChunk(cx, cy);
@@ -95,31 +94,43 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       setWorldStats(stats);
     }
 
-    // Clean up chunks that are too far away (memory management)
-    const { viewDistance } = DEFAULT_WORLD_CONFIG;
-    const maxDistance = viewDistance + 3; // Keep a larger buffer
-    const centerChunk = worldToChunk(-cameraOffset.x, -cameraOffset.y);
-
+    // Memory management: remove chunks that are far away
+    const maxDistance = DEFAULT_WORLD_CONFIG.viewDistance + 4;
     const chunksToDelete: string[] = [];
+
     chunks.forEach((_, key) => {
-      const parts = key.split(',');
-      const cx = parseInt(parts[0] ?? '0', 10);
-      const cy = parseInt(parts[1] ?? '0', 10);
-      
-      if (!isNaN(cx) && !isNaN(cy)) {
-        const distance = Math.max(
-          Math.abs(cx - centerChunk.x),
-          Math.abs(cy - centerChunk.y)
-        );
+      if (!visibleKeys.has(key)) {
+        const [cxStr, cyStr] = key.split(',');
+        const cx = parseInt(cxStr ?? '0', 10);
+        const cy = parseInt(cyStr ?? '0', 10);
         
-        if (distance > maxDistance) {
-          chunksToDelete.push(key);
+        if (!isNaN(cx) && !isNaN(cy)) {
+          // Check if chunk is within max distance of any visible chunk
+          let shouldKeep = false;
+          for (const visibleKey of visibleKeys) {
+            const [vxStr, vyStr] = visibleKey.split(',');
+            const vx = parseInt(vxStr ?? '0', 10);
+            const vy = parseInt(vyStr ?? '0', 10);
+            
+            if (!isNaN(vx) && !isNaN(vy)) {
+              const distance = Math.max(Math.abs(cx - vx), Math.abs(cy - vy));
+              if (distance <= maxDistance) {
+                shouldKeep = true;
+                break;
+              }
+            }
+          }
+          
+          if (!shouldKeep) {
+            chunksToDelete.push(key);
+          }
         }
       }
     });
 
     chunksToDelete.forEach(key => chunks.delete(key));
-  }, [getVisibleChunks, worldToChunk, cameraOffset]);
+    lastLoadedChunksRef.current = visibleKeys;
+  }, [getVisibleChunks, cameraOffset]);
 
   // Initialize world generator
   useEffect(() => {
@@ -128,24 +139,25 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Create generator immediately
+    // Create generator
     const generator = new WorldGenerator(worldData, DEFAULT_WORLD_CONFIG);
     generatorRef.current = generator;
 
-    // Center camera so that world (0, 0) appears in the center of the screen
-    const centerX = canvas.width / 2 || window.innerWidth / 2;
-    const centerY = canvas.height / 2 || window.innerHeight / 2;
+    // Center camera so that world (0, 0) appears in the center
+    const centerX = Math.floor(canvas.width / 2);
+    const centerY = Math.floor(canvas.height / 2);
     setCameraOffset({ x: centerX, y: centerY });
 
-    // Small delay for visual effect, then mark as ready
+    // Initialization complete
     setTimeout(() => {
       setIsInitializing(false);
-    }, 800);
+    }, 600);
 
     return () => {
       if (generatorRef.current) {
         generatorRef.current.clearCache();
       }
+      chunksRef.current.clear();
     };
   }, [worldData]);
 
@@ -162,13 +174,13 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    // Set canvas size
+    // Set canvas size if needed
     if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
 
-    // Clear canvas with dark background
+    // Clear canvas
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -177,7 +189,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
     if (chunks.size === 0) return;
 
-    // Tile colors
+    // Tile colors with slight variations
     const colors: Record<TileType, string> = {
       water: '#1a4d5c',
       sand: '#c2a66b',
@@ -185,26 +197,41 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       stone: '#5a5a5a'
     };
 
-    // Render all chunks
-    chunks.forEach((chunk) => {
-      // Calculate chunk's top-left position in world space
-      const chunkWorldX = chunk.x * chunkSize * tileSize;
-      const chunkWorldY = chunk.y * chunkSize * tileSize;
+    const borderColor = 'rgba(0, 0, 0, 0.15)';
 
-      // Render tiles in chunk
-      for (let y = 0; y < chunk.tiles.length; y++) {
+    // Render all loaded chunks
+    chunks.forEach((chunk) => {
+      const chunkPixelX = chunk.x * chunkSize * tileSize;
+      const chunkPixelY = chunk.y * chunkSize * tileSize;
+
+      // Calculate screen position of chunk
+      const screenChunkX = chunkPixelX + cameraOffset.x;
+      const screenChunkY = chunkPixelY + cameraOffset.y;
+
+      // Cull entire chunk if completely off-screen
+      const chunkPixelSize = chunkSize * tileSize;
+      if (
+        screenChunkX + chunkPixelSize < 0 ||
+        screenChunkX > canvas.width ||
+        screenChunkY + chunkPixelSize < 0 ||
+        screenChunkY > canvas.height
+      ) {
+        return;
+      }
+
+      // Render tiles in this chunk
+      for (let y = 0; y < chunkSize; y++) {
         const row = chunk.tiles[y];
         if (!row) continue;
         
-        for (let x = 0; x < row.length; x++) {
+        for (let x = 0; x < chunkSize; x++) {
           const tile = row[x];
           if (!tile) continue;
           
-          // Calculate screen position
-          const screenX = chunkWorldX + (x * tileSize) + cameraOffset.x;
-          const screenY = chunkWorldY + (y * tileSize) + cameraOffset.y;
+          const screenX = screenChunkX + (x * tileSize);
+          const screenY = screenChunkY + (y * tileSize);
 
-          // Cull offscreen tiles for performance
+          // Tile-level culling for edge chunks
           if (
             screenX + tileSize < 0 ||
             screenX > canvas.width ||
@@ -218,8 +245,8 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
           ctx.fillStyle = colors[tile.type];
           ctx.fillRect(screenX, screenY, tileSize, tileSize);
 
-          // Add subtle borders
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+          // Draw subtle border
+          ctx.strokeStyle = borderColor;
           ctx.lineWidth = 1;
           ctx.strokeRect(screenX, screenY, tileSize, tileSize);
         }
@@ -231,17 +258,19 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     ctx.lineWidth = 1;
     
     const gridSize = tileSize * 8;
-    const startX = Math.floor(-cameraOffset.x / gridSize) * gridSize + cameraOffset.x;
-    const startY = Math.floor(-cameraOffset.y / gridSize) * gridSize + cameraOffset.y;
+    const offsetX = cameraOffset.x % gridSize;
+    const offsetY = cameraOffset.y % gridSize;
 
-    for (let x = startX; x < canvas.width + gridSize; x += gridSize) {
+    // Vertical lines
+    for (let x = offsetX; x < canvas.width; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, canvas.height);
       ctx.stroke();
     }
     
-    for (let y = startY; y < canvas.height + gridSize; y += gridSize) {
+    // Horizontal lines
+    for (let y = offsetY; y < canvas.height; y += gridSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(canvas.width, y);
@@ -274,7 +303,22 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     loadVisibleChunks();
   }, [cameraOffset, isInitializing, loadVisibleChunks]);
 
-  // Handle mouse drag for camera movement
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        loadVisibleChunks();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [loadVisibleChunks]);
+
+  // Mouse drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
@@ -296,7 +340,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     setIsDragging(false);
   }, []);
 
-  // Handle touch events for mobile
+  // Touch handlers for mobile
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1) return;
     const touch = e.touches[0];
@@ -322,11 +366,13 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     setIsDragging(false);
   }, []);
 
-  const calculatePercentage = (count: number): string => {
-    if (!worldStats) return '0';
+  // Calculate terrain percentage
+  const calculatePercentage = useCallback((count: number): string => {
+    if (!worldStats) return '0.0';
     const total = Object.values(worldStats).reduce((sum, val) => sum + val, 0);
+    if (total === 0) return '0.0';
     return ((count / total) * 100).toFixed(1);
-  };
+  }, [worldStats]);
 
   const getTotalChunks = (): number => {
     return chunksRef.current.size;
