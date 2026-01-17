@@ -85,7 +85,7 @@ export class WorldGenerator {
     blockX: number, 
     blockY: number
   ): { type: TileType; blendFactor: number; elevation: number } {
-    const scale = 0.02;
+    const scale = 0.015; // Slightly adjusted for better biome sizes
     
     const weights = this.getBiomeWeights(blockX * scale, blockY * scale);
     const biome = this.determineBiome(weights, blockX, blockY);
@@ -99,23 +99,27 @@ export class WorldGenerator {
   }
 
   private getBiomeWeights(x: number, y: number): BiomeWeights {
-    const temp1 = this.noiseGen.noise(x * 1.0, y * 1.0, 1000);
+    // Multi-octave noise for temperature
+    const temp1 = this.noiseGen.noise(x * 0.8, y * 0.8, 1000);
     const temp2 = this.noiseGen.noise(x * 2.0, y * 2.0, 1100);
-    const temp3 = this.noiseGen.noise(x * 0.5, y * 0.5, 1200);
+    const temp3 = this.noiseGen.noise(x * 0.4, y * 0.4, 1200);
     const temperature = (temp1 * 0.5 + temp2 * 0.3 + temp3 * 0.2);
     
-    const moist1 = this.noiseGen.noise(x * 1.2, y * 1.2, 2000);
-    const moist2 = this.noiseGen.noise(x * 2.4, y * 2.4, 2100);
-    const moist3 = this.noiseGen.noise(x * 0.6, y * 0.6, 2200);
+    // Multi-octave noise for moisture
+    const moist1 = this.noiseGen.noise(x * 1.0, y * 1.0, 2000);
+    const moist2 = this.noiseGen.noise(x * 2.5, y * 2.5, 2100);
+    const moist3 = this.noiseGen.noise(x * 0.5, y * 0.5, 2200);
     const moisture = (moist1 * 0.5 + moist2 * 0.3 + moist3 * 0.2);
     
-    const elev1 = this.noiseGen.noise(x * 0.8, y * 0.8, 3000);
-    const elev2 = this.noiseGen.noise(x * 1.6, y * 1.6, 3100);
-    const elev3 = this.noiseGen.noise(x * 3.2, y * 3.2, 3200);
+    // Multi-octave noise for elevation with more dramatic variation
+    const elev1 = this.noiseGen.noise(x * 0.6, y * 0.6, 3000);
+    const elev2 = this.noiseGen.noise(x * 1.8, y * 1.8, 3100);
+    const elev3 = this.noiseGen.noise(x * 3.5, y * 3.5, 3200);
     const elevation = (elev1 * 0.6 + elev2 * 0.25 + elev3 * 0.15);
     
-    const weird1 = this.noiseGen.noise(x * 1.5, y * 1.5, 4000);
-    const weird2 = this.noiseGen.noise(x * 3.0, y * 3.0, 4100);
+    // Weirdness for unusual biomes
+    const weird1 = this.noiseGen.noise(x * 1.2, y * 1.2, 4000);
+    const weird2 = this.noiseGen.noise(x * 3.5, y * 3.5, 4100);
     const weirdness = (weird1 * 0.7 + weird2 * 0.3);
     
     return { temperature, moisture, elevation, weirdness };
@@ -125,118 +129,121 @@ export class WorldGenerator {
     const { temperature, moisture, elevation, weirdness } = weights;
     
     const distanceFromSpawn = Math.sqrt(blockX * blockX + blockY * blockY);
-    const rarityThreshold = this.noiseGen.noise(blockX * 0.01, blockY * 0.01, 5000);
+    const rarityThreshold = this.noiseGen.noise(blockX * 0.008, blockY * 0.008, 5000);
     
-    // LEGENDARY BIOMES
-    if (distanceFromSpawn > 15000 && weirdness > 0.75) {
-      if (temperature > 0.7 && elevation > 0.6 && rarityThreshold > 0.85) {
+    // LEGENDARY BIOMES (extremely rare, far from spawn)
+    if (distanceFromSpawn > 12000 && weirdness > 0.7) {
+      if (temperature > 0.65 && elevation > 0.55 && rarityThreshold > 0.82) {
         return 'molten_wastes';
       }
-      if (temperature < -0.5 && elevation < -0.4 && rarityThreshold > 0.85) {
+      if (temperature < -0.4 && elevation < -0.35 && rarityThreshold > 0.82) {
         return 'ashlands';
       }
     }
     
-    // EPIC BIOMES
-    if (weirdness > 0.65 && rarityThreshold > 0.75) {
-      if (moisture > 0.5 && elevation < -0.3 && temperature > 0.3 && temperature < 0.6) {
-        if (this.noiseGen.noise(blockX * 0.05, blockY * 0.05, 6000) > 0.6) {
+    // EPIC BIOMES (very rare)
+    if (weirdness > 0.6 && rarityThreshold > 0.72) {
+      // Oasis in deserts
+      if (moisture > 0.4 && elevation < -0.25 && temperature > 0.25 && temperature < 0.65) {
+        if (this.noiseGen.noise(blockX * 0.04, blockY * 0.04, 6000) > 0.55) {
           return 'oasis';
         }
       }
-      if (elevation > 0.65 && moisture < -0.2) {
-        if (this.noiseGen.noise(blockX * 0.08, blockY * 0.08, 6100) > 0.7) {
+      // Mines in mountains
+      if (elevation > 0.6 && moisture < -0.15) {
+        if (this.noiseGen.noise(blockX * 0.07, blockY * 0.07, 6100) > 0.65) {
           return 'mines';
         }
       }
     }
     
     // RARE BIOMES
-    if (rarityThreshold > 0.6) {
-      if (elevation < -0.5 && weirdness > 0.4) return 'caves';
-      if (temperature > 0.5 && moisture > 0.6 && elevation > -0.2 && elevation < 0.3) return 'jungle';
-      if (moisture > 0.5 && elevation > -0.15 && elevation < 0.0 && temperature > 0.2) return 'mangrove';
-      if (elevation < -0.1 && elevation > -0.3 && temperature > 0.4 && moisture > 0.3) {
-        if (this.noiseGen.noise(blockX * 0.1, blockY * 0.1, 6200) > 0.5) return 'coral_reef';
+    if (rarityThreshold > 0.55) {
+      if (elevation < -0.45 && weirdness > 0.35) return 'caves';
+      if (temperature > 0.45 && moisture > 0.55 && elevation > -0.15 && elevation < 0.35) return 'jungle';
+      if (moisture > 0.45 && elevation > -0.12 && elevation < 0.05 && temperature > 0.15) return 'mangrove';
+      if (elevation < -0.08 && elevation > -0.28 && temperature > 0.35 && moisture > 0.25) {
+        if (this.noiseGen.noise(blockX * 0.09, blockY * 0.09, 6200) > 0.45) return 'coral_reef';
       }
-      if (temperature > 0.4 && moisture < -0.3 && elevation > 0.2 && elevation < 0.5) return 'badlands';
-      if (temperature > 0.3 && moisture > -0.1 && moisture < 0.2 && elevation > 0.2 && elevation < 0.45) return 'wooded_badlands';
-      if (temperature > 0.3 && moisture < -0.5 && elevation > -0.1 && elevation < 0.3) return 'wastelands';
-      if (temperature < -0.3 && moisture > 0.0 && elevation > 0.1 && elevation < 0.4) return 'snowy_taiga';
-      if (temperature < -0.4 && moisture < 0.0 && elevation > 0.0) return 'tundra';
+      if (temperature > 0.35 && moisture < -0.25 && elevation > 0.25 && elevation < 0.55) return 'badlands';
+      if (temperature > 0.25 && moisture > -0.08 && moisture < 0.25 && elevation > 0.25 && elevation < 0.5) return 'wooded_badlands';
+      if (temperature > 0.25 && moisture < -0.45 && elevation > -0.08 && elevation < 0.35) return 'wastelands';
+      if (temperature < -0.25 && moisture > 0.05 && elevation > 0.15 && elevation < 0.45) return 'snowy_taiga';
+      if (temperature < -0.35 && moisture < 0.05 && elevation > 0.05) return 'tundra';
     }
     
-    // WATER BIOMES
-    if (elevation < -0.6) return temperature < -0.3 ? 'deep_frozen_ocean' : 'deep_ocean';
-    if (elevation < -0.35) return temperature < -0.3 ? 'frozen_ocean' : 'ocean';
-    if (elevation < -0.2 && elevation > -0.35) return 'river';
+    // WATER BIOMES (elevation-based)
+    if (elevation < -0.55) return temperature < -0.25 ? 'deep_frozen_ocean' : 'deep_ocean';
+    if (elevation < -0.32) return temperature < -0.25 ? 'frozen_ocean' : 'ocean';
+    if (elevation < -0.18 && elevation > -0.32) return 'river';
     
     // MOUNTAIN
-    if (elevation > 0.6) return 'mountain';
+    if (elevation > 0.58) return 'mountain';
     
     // COLD BIOMES
-    if (temperature < -0.3) {
-      if (moisture > 0.2 && elevation > 0.1) return 'taiga';
-      if (elevation < 0.1) return 'snowy_plains';
+    if (temperature < -0.25) {
+      if (moisture > 0.25 && elevation > 0.12) return 'taiga';
+      if (elevation < 0.12) return 'snowy_plains';
       return 'tundra';
     }
     
     // HOT/DRY BIOMES
-    if (temperature > 0.4) {
-      if (moisture < -0.4) return 'desert';
-      if (moisture > 0.3 && elevation < 0.1) return 'savanna';
+    if (temperature > 0.35) {
+      if (moisture < -0.35) return 'desert';
+      if (moisture > 0.25 && elevation < 0.15) return 'savanna';
     }
     
     // TEMPERATE BIOMES
-    if (moisture > 0.3 && elevation > -0.1 && elevation < 0.2) {
-      if (this.noiseGen.noise(blockX * 0.06, blockY * 0.06, 7000) > 0.3) return 'forest';
+    if (moisture > 0.28 && elevation > -0.08 && elevation < 0.25) {
+      if (this.noiseGen.noise(blockX * 0.05, blockY * 0.05, 7000) > 0.25) return 'forest';
     }
-    if (moisture < -0.2 && moisture > -0.5 && elevation > -0.1 && elevation < 0.3) return 'plains';
-    if (moisture > 0.5 && elevation > -0.1 && elevation < 0.1) return 'swamp';
+    if (moisture < -0.15 && moisture > -0.45 && elevation > -0.08 && elevation < 0.35) return 'plains';
+    if (moisture > 0.48 && elevation > -0.08 && elevation < 0.12) return 'swamp';
     
     return 'grasslands';
   }
 
   private getElevation(x: number, y: number): number {
-    const scale = 0.02;
-    const elev1 = this.noiseGen.noise(x * scale * 0.8, y * scale * 0.8, 3000);
-    const elev2 = this.noiseGen.noise(x * scale * 1.6, y * scale * 1.6, 3100);
-    const elev3 = this.noiseGen.noise(x * scale * 3.2, y * scale * 3.2, 3200);
+    const scale = 0.015;
+    const elev1 = this.noiseGen.noise(x * scale * 0.6, y * scale * 0.6, 3000);
+    const elev2 = this.noiseGen.noise(x * scale * 1.8, y * scale * 1.8, 3100);
+    const elev3 = this.noiseGen.noise(x * scale * 3.5, y * scale * 3.5, 3200);
     return (elev1 * 0.6 + elev2 * 0.25 + elev3 * 0.15);
   }
 
   private getTileType(x: number, y: number): TileType {
-    const scale = 0.02;
+    const scale = 0.015;
     const weights = this.getBiomeWeights(x * scale, y * scale);
     return this.determineBiome(weights, x * 16, y * 16);
   }
 
   private getTileVariant(x: number, y: number, type: TileType): number {
-    const hash = this.noiseGen.noise(x * 0.1, y * 0.1, 8000);
+    const hash = this.noiseGen.noise(x * 0.08, y * 0.08, 8000);
     const variantCounts: Partial<Record<TileType, number>> = {
       grasslands: 6, plains: 5, forest: 6, desert: 5,
-      ocean: 4, deep_ocean: 3, mountain: 5, swamp: 4,
-      taiga: 5, jungle: 6, badlands: 5, savanna: 4,
-      tundra: 4, ashlands: 4, molten_wastes: 3
+      ocean: 6, deep_ocean: 6, mountain: 6, swamp: 6,
+      taiga: 6, jungle: 6, badlands: 6, savanna: 5,
+      tundra: 6, ashlands: 6, molten_wastes: 6,
+      river: 6, coral_reef: 6, mangrove: 6
     };
-    const count = variantCounts[type] || 4;
+    const count = variantCounts[type] || 6;
     return Math.floor((hash + 1) * 0.5 * count);
   }
 
   private calculateBlendFactor(weights: BiomeWeights): number {
     const boundaries = [
-      Math.abs(weights.elevation + 0.6),
-      Math.abs(weights.elevation + 0.35),
+      Math.abs(weights.elevation + 0.55),
+      Math.abs(weights.elevation + 0.32),
       Math.abs(weights.elevation - 0.0),
-      Math.abs(weights.elevation - 0.6),
-      Math.abs(weights.temperature + 0.3),
-      Math.abs(weights.temperature - 0.4),
-      Math.abs(weights.moisture + 0.3),
-      Math.abs(weights.moisture - 0.3)
+      Math.abs(weights.elevation - 0.58),
+      Math.abs(weights.temperature + 0.25),
+      Math.abs(weights.temperature - 0.35),
+      Math.abs(weights.moisture + 0.28),
+      Math.abs(weights.moisture - 0.28)
     ];
     
     const minDistance = Math.min(...boundaries);
-    return Math.min(1, minDistance * 8);
+    return Math.min(1, minDistance * 10);
   }
 
   clearCache(): void {

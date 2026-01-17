@@ -2,7 +2,7 @@
 
 import type { Chunk, WorldConfig } from '../types/world.types';
 import type { ChunkTexture } from '../types/rendering.types';
-import { getBlockColor } from '../utils/world/biomeConfig';
+import { getBlockColor, BIOME_BLEND_COLORS } from '../utils/world/biomeConfig';
 
 export class ChunkRenderer {
   private config: WorldConfig;
@@ -58,20 +58,52 @@ export class ChunkRenderer {
             const blockX = tileX + bx * blockSize;
             const blockY = tileY + by * blockSize;
 
+            // Get base color
             const color = getBlockColor(block.type, tileVariant, block.x, block.y);
             ctx.fillStyle = color;
             ctx.fillRect(blockX, blockY, blockSize, blockSize);
 
-            // Optional: Add subtle highlights for biome boundaries
-            if (block.blendFactor !== undefined && block.blendFactor < 0.5) {
-              const hash = (block.x * 73856093) ^ (block.y * 19349663);
-              if ((hash & 0xff) < 40) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            // Add biome transition blending
+            if (block.blendFactor !== undefined && block.blendFactor < 0.7) {
+              const blendColor = BIOME_BLEND_COLORS[block.type];
+              if (blendColor) {
+                ctx.fillStyle = blendColor;
                 ctx.fillRect(blockX, blockY, blockSize, blockSize);
               }
             }
+
+            // Add subtle highlights for visual depth
+            const hash = (block.x * 73856093) ^ (block.y * 19349663);
+            const shouldHighlight = (hash & 0xff) < 25;
+            
+            if (shouldHighlight) {
+              // Determine highlight type based on biome
+              if (['ocean', 'deep_ocean', 'river', 'frozen_ocean'].includes(block.type)) {
+                // Water shimmer
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.fillRect(blockX, blockY, blockSize, blockSize);
+              } else if (['snowy_plains', 'tundra', 'snowy_taiga'].includes(block.type)) {
+                // Snow sparkle
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fillRect(blockX, blockY, blockSize, blockSize);
+              } else if (['grasslands', 'forest', 'jungle', 'plains'].includes(block.type)) {
+                // Vegetation detail
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+                ctx.fillRect(blockX, blockY, blockSize, blockSize);
+              }
+            }
+
+            // Add shadow details for depth
+            const shouldShadow = (hash & 0xff) > 230;
+            if (shouldShadow) {
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+              ctx.fillRect(blockX, blockY, blockSize, blockSize);
+            }
           }
         }
+
+        // Add tile-level detail for more complex biomes
+        this.addTileDetails(ctx, tile, tileX, tileY, tileSize, blockSize);
       }
     }
 
@@ -80,6 +112,77 @@ export class ChunkRenderer {
       isDirty: false,
       lastAccessed: Date.now()
     };
+  }
+
+  private addTileDetails(
+    ctx: CanvasRenderingContext2D,
+    tile: any,
+    tileX: number,
+    tileY: number,
+    tileSize: number,
+    blockSize: number
+  ): void {
+    const { type } = tile;
+    
+    // Add special details for certain biomes
+    const hash = (tile.x * 73856093) ^ (tile.y * 19349663);
+    
+    // Forest: Add tree-like clusters
+    if (type === 'forest' || type === 'jungle') {
+      if ((hash & 0xff) < 40) {
+        const centerX = tileX + (tileSize / 2);
+        const centerY = tileY + (tileSize / 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, blockSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    // Desert: Add dune patterns
+    else if (type === 'desert') {
+      if ((hash & 0xff) < 30) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.fillRect(tileX, tileY + tileSize / 2, tileSize, blockSize);
+      }
+    }
+    
+    // Mountain: Add rocky texture
+    else if (type === 'mountain') {
+      if ((hash & 0xff) < 50) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        const offset = (hash % 3) * blockSize;
+        ctx.fillRect(tileX + offset, tileY + offset, blockSize * 2, blockSize * 2);
+      }
+    }
+    
+    // Molten wastes: Add lava glow
+    else if (type === 'molten_wastes') {
+      if ((hash & 0xff) < 60) {
+        const gradient = ctx.createRadialGradient(
+          tileX + tileSize / 2, 
+          tileY + tileSize / 2, 
+          0,
+          tileX + tileSize / 2, 
+          tileY + tileSize / 2, 
+          tileSize / 2
+        );
+        gradient.addColorStop(0, 'rgba(255, 100, 50, 0.3)');
+        gradient.addColorStop(1, 'rgba(255, 100, 50, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(tileX, tileY, tileSize, tileSize);
+      }
+    }
+    
+    // Coral reef: Add colorful spots
+    else if (type === 'coral_reef') {
+      if ((hash & 0xff) < 45) {
+        ctx.fillStyle = 'rgba(255, 120, 180, 0.2)';
+        const spotX = tileX + ((hash % 4) * blockSize * 2);
+        const spotY = tileY + (((hash >> 4) % 4) * blockSize * 2);
+        ctx.fillRect(spotX, spotY, blockSize * 2, blockSize * 2);
+      }
+    }
   }
 
   drawChunkTexture(
