@@ -509,4 +509,5 @@ Certain biomes are more rare than others, and use unique generation.
 Add a coordinate system. The user (which is yet to be implemented) will always spawn in x 0, y 0.
 Be extremely creative when adding these new biomes and ensure amazing world creation.
 
-Provide the updated code in separate code blocks following the project structure.
+Provide the updated code in separate code blocks following the project structure (example world.types.ts and GameWorld.tsx)
+Please provide the updated code in separate code blocks matching the original structure.
