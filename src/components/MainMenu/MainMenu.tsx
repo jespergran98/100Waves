@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './MainMenu.css';
 
 interface MainMenuProps {
@@ -16,51 +16,43 @@ interface Particle {
   size: number;
 }
 
-interface BloodSplatter {
-  id: number;
-  x: number;
-  y: number;
-  rotation: number;
-  scale: number;
-}
-
 const MainMenu = ({ onPlay, onSettings, onQuit }: MainMenuProps) => {
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [bloodSplatters, setBloodSplatters] = useState<BloodSplatter[]>([]);
-  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
-  const [isHovering, setIsHovering] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [focusedButton, setFocusedButton] = useState<string | null>(null);
+  const [glitchActive, setGlitchActive] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Generate particles on mount
+  // Initialize atmospheric particles
   useEffect(() => {
     const particleCount = 30;
     const newParticles: Particle[] = Array.from({ length: particleCount }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      delay: Math.random() * 8,
-      duration: 12 + Math.random() * 8,
+      delay: Math.random() * 15,
+      duration: 20 + Math.random() * 15,
       size: 2 + Math.random() * 3
     }));
     setParticles(newParticles);
 
-    // Generate static blood splatters
-    const splatterCount = 8;
-    const newSplatters: BloodSplatter[] = Array.from({ length: splatterCount }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      rotation: Math.random() * 360,
-      scale: 0.5 + Math.random() * 1
-    }));
-    setBloodSplatters(newSplatters);
+    // Periodic glitch effect on title
+    const glitchInterval = setInterval(() => {
+      if (Math.random() > 0.6) {
+        setGlitchActive(true);
+        setTimeout(() => setGlitchActive(false), 150 + Math.random() * 200);
+      }
+    }, 4000);
+
+    return () => clearInterval(glitchInterval);
   }, []);
 
-  // Parallax mouse tracking
+  // Smooth mouse tracking
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth) * 100;
-      const y = (e.clientY / window.innerHeight) * 100;
+      const x = (e.clientX / window.innerWidth - 0.5) * 2;
+      const y = (e.clientY / window.innerHeight - 0.5) * 2;
       setMousePos({ x, y });
     };
 
@@ -68,49 +60,56 @@ const MainMenu = ({ onPlay, onSettings, onQuit }: MainMenuProps) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Subtle UI sound
+  const playSound = useCallback((frequency: number = 800) => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.frequency.value = frequency;
+      gain.gain.value = 0.008;
+      
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.stop(ctx.currentTime + 0.08);
+    } catch (e) {
+      // Silently fail if audio context not available
+    }
+  }, []);
+
+  const handleButtonFocus = useCallback((buttonId: string) => {
+    setFocusedButton(buttonId);
+    playSound(900);
+  }, [playSound]);
+
+  const handleButtonClick = useCallback((action: () => void) => {
+    playSound(1200);
+    setTimeout(action, 150);
+  }, [playSound]);
+
   return (
-    <div className="main-menu" ref={menuRef}>
-      {/* Atmospheric background layers */}
-      <div className="bg-layer bg-base" />
-      
-      <div 
-        className="bg-layer bg-gradient-red"
-        style={{
-          transform: `translate(${(mousePos.x - 50) * 0.015}px, ${(mousePos.y - 50) * 0.015}px)`
-        }}
-      />
-      
-      <div 
-        className="bg-layer bg-gradient-green"
-        style={{
-          transform: `translate(${(mousePos.x - 50) * -0.02}px, ${(mousePos.y - 50) * -0.02}px)`
-        }}
-      />
-
-      <div 
-        className="bg-layer bg-grid"
-        style={{
-          transform: `translate(${(mousePos.x - 50) * 0.03}px, ${(mousePos.y - 50) * 0.03}px)`
-        }}
-      />
-
-      {/* Blood splatters */}
-      <div className="blood-splatters">
-        {bloodSplatters.map(splatter => (
-          <div
-            key={splatter.id}
-            className="blood-splatter"
-            style={{
-              left: `${splatter.x}%`,
-              top: `${splatter.y}%`,
-              transform: `rotate(${splatter.rotation}deg) scale(${splatter.scale})`
-            }}
-          />
-        ))}
+    <div className={`main-menu ${glitchActive ? 'glitch-active' : ''}`} ref={menuRef}>
+      {/* Gradient background */}
+      <div className="menu-bg">
+        <div 
+          className="bg-gradient"
+          style={{
+            transform: `translate(${mousePos.x * 15}px, ${mousePos.y * 15}px)`
+          }}
+        />
+        <div className="bg-static" />
+        <div className="bg-scanlines" />
       </div>
 
-      {/* Floating particles (ash/debris) */}
-      <div className="particles-container">
+      {/* Subtle particles */}
+      <div className="particles">
         {particles.map(particle => (
           <div
             key={particle.id}
@@ -127,127 +126,96 @@ const MainMenu = ({ onPlay, onSettings, onQuit }: MainMenuProps) => {
         ))}
       </div>
 
-      {/* Vignette and effects */}
+      {/* Vignette overlay */}
       <div className="vignette" />
-      <div className="scanlines" />
-      <div className="film-grain" />
 
-      {/* Main content container */}
-      <div className="menu-content">
+      {/* Main content */}
+      <div className="menu-container">
         {/* Title section */}
-        <div className="title-section">
-          <div className="title-container">
-            <div className="title-glow" />
-            <h1 className="game-title">
-              <span className="title-number">100</span>
-              <span className="title-text">WAVES</span>
-            </h1>
-            <div className="title-underline" />
+        <div className={`title-section ${glitchActive ? 'glitch-active' : ''}`}>
+          <div className="title-primary">
+            <span className="title-number">100</span>
+            <span className="title-divider" />
+            <span className="title-text">WAVES</span>
           </div>
-          
-          <div className="subtitle-container">
-            <div className="subtitle-decoration left">
-              <span className="skull-icon">☠</span>
-              <div className="decoration-line" />
-            </div>
-            <h2 className="subtitle">ZOMBIE SURVIVAL</h2>
-            <div className="subtitle-decoration right">
-              <div className="decoration-line" />
-              <span className="skull-icon">☠</span>
-            </div>
+          <div className="title-subtitle">
+            <span className="subtitle-text">ZOMBIE SURVIVAL</span>
           </div>
-
-          <p className="tagline">
-            <span className="tagline-text">FIGHT. SURVIVE. CONQUER.</span>
-          </p>
         </div>
 
-        {/* Navigation menu */}
-        <nav className="menu-navigation" role="navigation" aria-label="Main menu">
-          <button 
-            className={`menu-btn menu-btn-play ${isHovering === 'play' ? 'is-hovering' : ''}`}
-            onClick={onPlay}
-            onMouseEnter={() => setIsHovering('play')}
-            onMouseLeave={() => setIsHovering(null)}
-            aria-label="Start game"
+        {/* Navigation buttons */}
+        <nav className="menu-nav">
+          <button
+            className={`menu-button primary ${focusedButton === 'play' ? 'focused' : ''}`}
+            onMouseEnter={() => handleButtonFocus('play')}
+            onMouseLeave={() => setFocusedButton(null)}
+            onFocus={() => handleButtonFocus('play')}
+            onBlur={() => setFocusedButton(null)}
+            onClick={() => handleButtonClick(onPlay)}
+            aria-label="Start new game"
           >
-            <span className="btn-bg" />
-            <span className="btn-glow" />
-            <span className="btn-content">
-              <span className="btn-icon">▶</span>
-              <span className="btn-text">START GAME</span>
-              <span className="btn-arrow">→</span>
+            <span className="button-bg" />
+            <span className="button-content">
+              <span className="button-icon">▶</span>
+              <span className="button-text">START GAME</span>
             </span>
+            <span className="button-glow" />
           </button>
 
-          <button 
-            className={`menu-btn menu-btn-settings ${isHovering === 'settings' ? 'is-hovering' : ''}`}
-            onClick={onSettings}
-            onMouseEnter={() => setIsHovering('settings')}
-            onMouseLeave={() => setIsHovering(null)}
+          <button
+            className={`menu-button secondary ${focusedButton === 'settings' ? 'focused' : ''}`}
+            onMouseEnter={() => handleButtonFocus('settings')}
+            onMouseLeave={() => setFocusedButton(null)}
+            onFocus={() => handleButtonFocus('settings')}
+            onBlur={() => setFocusedButton(null)}
+            onClick={() => handleButtonClick(onSettings)}
             aria-label="Open settings"
           >
-            <span className="btn-bg" />
-            <span className="btn-glow" />
-            <span className="btn-content">
-              <span className="btn-icon">⚙</span>
-              <span className="btn-text">SETTINGS</span>
-              <span className="btn-arrow">→</span>
+            <span className="button-bg" />
+            <span className="button-content">
+              <span className="button-icon">⚙</span>
+              <span className="button-text">SETTINGS</span>
             </span>
+            <span className="button-glow" />
           </button>
 
-          <button 
-            className={`menu-btn menu-btn-quit ${isHovering === 'quit' ? 'is-hovering' : ''}`}
-            onClick={onQuit}
-            onMouseEnter={() => setIsHovering('quit')}
-            onMouseLeave={() => setIsHovering(null)}
+          <button
+            className={`menu-button tertiary ${focusedButton === 'quit' ? 'focused' : ''}`}
+            onMouseEnter={() => handleButtonFocus('quit')}
+            onMouseLeave={() => setFocusedButton(null)}
+            onFocus={() => handleButtonFocus('quit')}
+            onBlur={() => setFocusedButton(null)}
+            onClick={() => handleButtonClick(onQuit)}
             aria-label="Quit game"
           >
-            <span className="btn-bg" />
-            <span className="btn-glow" />
-            <span className="btn-content">
-              <span className="btn-icon">✕</span>
-              <span className="btn-text">QUIT</span>
-              <span className="btn-arrow">→</span>
+            <span className="button-bg" />
+            <span className="button-content">
+              <span className="button-icon">✕</span>
+              <span className="button-text">QUIT</span>
             </span>
+            <span className="button-glow" />
           </button>
         </nav>
 
-        {/* Footer information */}
+        {/* Footer */}
         <footer className="menu-footer">
-          <p className="version-info">v1.0.0 • BETA</p>
-          <p className="copyright">© {new Date().getFullYear()} • SURVIVE OR DIE</p>
+          <div className="footer-status">
+            <span className="status-dot" />
+            <span className="status-text">READY</span>
+          </div>
+          <div className="footer-info">
+            <span className="info-text">v1.0.0</span>
+            <span className="info-divider">•</span>
+            <span className="info-text">© {new Date().getFullYear()}</span>
+          </div>
         </footer>
       </div>
 
-      {/* Corner UI decorations */}
-      <div className="corner-ui corner-tl" aria-hidden="true">
-        <div className="corner-line corner-line-h" />
-        <div className="corner-line corner-line-v" />
-        <div className="corner-dot" />
-      </div>
-      <div className="corner-ui corner-tr" aria-hidden="true">
-        <div className="corner-line corner-line-h" />
-        <div className="corner-line corner-line-v" />
-        <div className="corner-dot" />
-      </div>
-      <div className="corner-ui corner-bl" aria-hidden="true">
-        <div className="corner-line corner-line-h" />
-        <div className="corner-line corner-line-v" />
-        <div className="corner-dot" />
-      </div>
-      <div className="corner-ui corner-br" aria-hidden="true">
-        <div className="corner-line corner-line-h" />
-        <div className="corner-line corner-line-v" />
-        <div className="corner-dot" />
-      </div>
-
-      {/* Ambient sound indicator (visual only) */}
-      <div className="sound-indicator" aria-hidden="true">
-        <span className="sound-wave" />
-        <span className="sound-wave" />
-        <span className="sound-wave" />
-      </div>
+      {/* Corner accents */}
+      <div className="corner-accent top-left" />
+      <div className="corner-accent top-right" />
+      <div className="corner-accent bottom-left" />
+      <div className="corner-accent bottom-right" />
     </div>
   );
 };
