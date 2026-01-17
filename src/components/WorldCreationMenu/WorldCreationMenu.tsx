@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import './WorldCreation.css';
+import './WorldCreationMenu.css';
 
 interface WorldCreationProps {
   onCreateWorld: (worldData: WorldData) => void;
@@ -12,7 +12,7 @@ export interface WorldData {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
-const WorldCreation = ({ onCreateWorld, onBack }: WorldCreationProps) => {
+const WorldCreationMenu = ({ onCreateWorld, onBack }: WorldCreationProps) => {
   const [worldName, setWorldName] = useState('');
   const [seed, setSeed] = useState('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
@@ -270,4 +270,4 @@ const WorldCreation = ({ onCreateWorld, onBack }: WorldCreationProps) => {
   );
 };
 
-export default WorldCreation;
+export default WorldCreationMenu;

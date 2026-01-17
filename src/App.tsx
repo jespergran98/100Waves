@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import MainMenu from './components/MainMenu';
-import WorldCreation from './components/WorldCreation';
-import type { WorldData } from './components/WorldCreation';
+import WorldCreationMenu from './components/WorldCreationMenu';
+import type { WorldData } from './components/WorldCreationMenu';
 import './global.css';
 
-type GameState = 'menu' | 'worldCreation' | 'playing' | 'settings';
+type GameState = 'menu' | 'worldCreationMenu' | 'playing' | 'settings';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('menu');
   const [currentWorld, setCurrentWorld] = useState<WorldData | null>(null);
 
   const handlePlay = () => {
-    setGameState('worldCreation');
+    setGameState('worldCreationMenu');
     console.log('Opening world creation...');
   };
 
@@ -46,8 +46,8 @@ function App() {
         />
       )}
 
-      {gameState === 'worldCreation' && (
-        <WorldCreation
+      {gameState === 'worldCreationMenu' && (
+        <WorldCreationMenu
           onCreateWorld={handleCreateWorld}
           onBack={handleBackToMenu}
         />
