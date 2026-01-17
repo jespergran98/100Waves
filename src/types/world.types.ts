@@ -1,17 +1,46 @@
-// World generation and tile types with enhanced detail
+// World generation and tile types with enhanced biome diversity
 
 export type TileType = 
-  | 'grass' 
-  | 'dirt' 
-  | 'water' 
-  | 'deep_water'
-  | 'sand' 
-  | 'stone' 
-  | 'gravel'
+  // Common biomes
+  | 'grasslands'
+  | 'plains'
   | 'forest'
-  | 'dead_tree'
-  | 'concrete'
-  | 'asphalt';
+  | 'river'
+  | 'ocean'
+  | 'deep_ocean'
+  | 'swamp'
+  
+  // Temperate biomes
+  | 'savanna'
+  | 'wooded_badlands'
+  
+  // Cold biomes
+  | 'snowy_plains'
+  | 'frozen_ocean'
+  | 'deep_frozen_ocean'
+  | 'taiga'
+  | 'snowy_taiga'
+  | 'tundra'
+  
+  // Hot/Dry biomes
+  | 'desert'
+  | 'badlands'
+  | 'wastelands'
+  
+  // Rare biomes
+  | 'oasis'
+  | 'coral_reef'
+  | 'mangrove'
+  | 'jungle'
+  
+  // Mountain/Underground
+  | 'mountain'
+  | 'caves'
+  | 'mines'
+  
+  // Ultra-rare biomes
+  | 'ashlands'
+  | 'molten_wastes';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -25,7 +54,8 @@ export interface Block {
   type: TileType;
   x: number;
   y: number;
-  blendFactor?: number; // 0-1 for biome blending
+  blendFactor?: number;
+  elevation?: number;
 }
 
 export interface Tile {
@@ -33,15 +63,18 @@ export interface Tile {
   x: number;
   y: number;
   variant?: number;
-  blocks: Block[][]; // 16x16 grid of blocks
+  blocks: Block[][];
+  elevation?: number;
 }
 
 export interface WorldConfig {
   chunkSize: number;
   tileSize: number;
-  blockSize: number; // New: size of each block within a tile
-  blocksPerTile: number; // New: 16x16 blocks per tile
+  blockSize: number;
+  blocksPerTile: number;
   viewDistance: number;
+  spawnX: number;
+  spawnY: number;
 }
 
 export interface Chunk {
@@ -55,7 +88,6 @@ export interface ChunkKey {
   y: number;
 }
 
-// Difficulty settings for gameplay mechanics
 export interface DifficultySettings {
   resourceMultiplier: number;
   enemySpawnRate: number;
@@ -86,8 +118,43 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   chunkSize: 16,
-  tileSize: 32,
-  blockSize: 2,        // Each block is 2x2 pixels
-  blocksPerTile: 16,   // 16x16 blocks per tile
-  viewDistance: 3
+  tileSize: 64,      // Increased from 32 for more zoom
+  blockSize: 4,       // Increased from 2 for more zoom
+  blocksPerTile: 16,
+  viewDistance: 2,    // Reduced from 3 since we're more zoomed in
+  spawnX: 0,
+  spawnY: 0
+};
+
+// Biome rarity levels
+export type BiomeRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export const BIOME_RARITY: Record<TileType, BiomeRarity> = {
+  grasslands: 'common',
+  plains: 'common',
+  forest: 'common',
+  river: 'common',
+  ocean: 'common',
+  deep_ocean: 'common',
+  swamp: 'uncommon',
+  savanna: 'uncommon',
+  wooded_badlands: 'uncommon',
+  snowy_plains: 'uncommon',
+  frozen_ocean: 'uncommon',
+  deep_frozen_ocean: 'uncommon',
+  taiga: 'uncommon',
+  snowy_taiga: 'rare',
+  tundra: 'rare',
+  desert: 'uncommon',
+  badlands: 'rare',
+  wastelands: 'rare',
+  oasis: 'epic',
+  coral_reef: 'rare',
+  mangrove: 'rare',
+  jungle: 'rare',
+  mountain: 'uncommon',
+  caves: 'rare',
+  mines: 'epic',
+  ashlands: 'legendary',
+  molten_wastes: 'legendary'
 };

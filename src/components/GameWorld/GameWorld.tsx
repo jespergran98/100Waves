@@ -1,7 +1,14 @@
+// src/components/GameWorld/GameWorld.tsx
+
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { WorldGenerator } from '../../utils/worldGenerator';
-import type { WorldData, Chunk, TileType, Block } from '../../types/world.types';
+import { WorldGenerator } from '../../utils/world/worldGenerator';
+import type { WorldData, Chunk, TileType } from '../../types/world.types';
 import { DEFAULT_WORLD_CONFIG } from '../../types/world.types';
+import { useCamera } from '../../hooks/useCamera';
+import { RenderOptimizer } from '../../rendering/RenderOptimizer';
+import WorldCanvas from './components/WorldCanvas';
+import WorldHUD from './components/WorldHUD';
+import WorldStats from './components/WorldStats';
 import './GameWorld.css';
 
 interface GameWorldProps {
@@ -9,104 +16,67 @@ interface GameWorldProps {
   onBackToMenu: () => void;
 }
 
-// Enhanced pixel-perfect color palette with variants
-const TILE_COLORS: Record<TileType, string[]> = {
-  grass: [
-    '#3d5a3d', '#3e5b3e', '#3f5c3f', '#405d40', '#415e41', '#3c593c'
-  ],
-  dirt: [
-    '#6b4e3d', '#6c4f3e', '#6d503f', '#6e5140'
-  ],
-  water: [
-    '#2d4d66', '#2e4e67', '#2f4f68', '#305069'
-  ],
-  deep_water: [
-    '#1e3a52', '#1f3b53', '#203c54'
-  ],
-  sand: [
-    '#a89968', '#a99a69', '#aa9b6a', '#ab9c6b'
-  ],
-  stone: [
-    '#5a5a5a', '#5b5b5b', '#5c5c5c', '#5d5d5d', '#5e5e5e'
-  ],
-  gravel: [
-    '#6e6e6e', '#6f6f6f', '#707070', '#717171'
-  ],
-  forest: [
-    '#2d4a2d', '#2e4b2e', '#2f4c2f'
-  ],
-  dead_tree: [
-    '#4a4034', '#4b4135', '#4c4236'
-  ],
-  concrete: [
-    '#7a7a7a', '#7b7b7b', '#7c7c7c', '#7d7d7d'
-  ],
-  asphalt: [
-    '#3a3a3a', '#3b3b3b', '#3c3c3c'
-  ]
-};
-
 const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const generatorRef = useRef<WorldGenerator | null>(null);
   const chunksRef = useRef<Map<string, Chunk>>(new Map());
+  const optimizerRef = useRef<RenderOptimizer | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [worldStats, setWorldStats] = useState<Record<TileType, number> | null>(null);
-  const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const lastRenderOffset = useRef({ x: 0, y: 0 });
-  const needsRenderRef = useRef(true);
-  const visibleChunksRef = useRef<Set<string>>(new Set());
+  const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0 });
   const loadTimeoutRef = useRef<number | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
 
-  const { chunkSize, tileSize, blockSize, blocksPerTile, viewDistance } = useMemo(() => DEFAULT_WORLD_CONFIG, []);
+  const { chunkSize, tileSize, blockSize, blocksPerTile } = DEFAULT_WORLD_CONFIG;
   const chunkPixelSize = useMemo(() => chunkSize * tileSize, [chunkSize, tileSize]);
 
-  const getChunkKey = useCallback((cx: number, cy: number): string => `${cx},${cy}`, []);
+  // Initialize camera centered on spawn
+  const { camera, isDragging, startDrag, updateDrag, endDrag, setCamera } = useCamera({
+    initialX: 0,
+    initialY: 0
+  });
 
-  const calculateVisibleChunks = useCallback((offsetX: number, offsetY: number, width: number, height: number): Set<string> => {
-    const minChunkX = Math.floor(-offsetX / chunkPixelSize) - viewDistance;
-    const minChunkY = Math.floor(-offsetY / chunkPixelSize) - viewDistance;
-    const maxChunkX = Math.floor((width - offsetX) / chunkPixelSize) + viewDistance;
-    const maxChunkY = Math.floor((height - offsetY) / chunkPixelSize) + viewDistance;
-
-    const visible = new Set<string>();
-    for (let cy = minChunkY; cy <= maxChunkY; cy++) {
-      for (let cx = minChunkX; cx <= maxChunkX; cx++) {
-        visible.add(getChunkKey(cx, cy));
-      }
+  // Initialize optimizer
+  useEffect(() => {
+    if (!optimizerRef.current) {
+      optimizerRef.current = new RenderOptimizer(DEFAULT_WORLD_CONFIG);
     }
-    return visible;
-  }, [chunkPixelSize, viewDistance, getChunkKey]);
+  }, []);
+
+  // Convert screen position to world coordinates
+  const screenToWorld = useCallback((screenX: number, screenY: number) => {
+    const blockPixelSize = blockSize;
+    const worldX = Math.floor((screenX - camera.x) / blockPixelSize);
+    const worldY = Math.floor((screenY - camera.y) / blockPixelSize);
+    return { x: worldX, y: worldY };
+  }, [camera, blockSize]);
+
+  // Update player coordinates based on camera center
+  useEffect(() => {
+    if (!canvasSizeRef.current.width) return;
+    
+    const centerX = canvasSizeRef.current.width / 2;
+    const centerY = canvasSizeRef.current.height / 2;
+    const coords = screenToWorld(centerX, centerY);
+    setPlayerCoords(coords);
+  }, [camera, screenToWorld]);
 
   const loadVisibleChunks = useCallback(() => {
-    const canvas = canvasRef.current;
     const generator = generatorRef.current;
-    if (!canvas || !generator) return;
+    const optimizer = optimizerRef.current;
+    if (!generator || !optimizer) return;
 
-    const visibleKeys = calculateVisibleChunks(
-      cameraOffset.x,
-      cameraOffset.y,
+    const bounds = optimizer.calculateViewportBounds(
+      camera.x,
+      camera.y,
       canvasSizeRef.current.width,
       canvasSizeRef.current.height
     );
 
-    if (visibleKeys.size === visibleChunksRef.current.size) {
-      let allSame = true;
-      for (const key of visibleKeys) {
-        if (!visibleChunksRef.current.has(key)) {
-          allSame = false;
-          break;
-        }
-      }
-      if (allSame) return;
-    }
-
+    const visibleKeys = optimizer.getVisibleChunks(bounds);
     const chunks = chunksRef.current;
     const newChunks: Chunk[] = [];
 
+    // Generate missing chunks
     visibleKeys.forEach(key => {
       if (!chunks.has(key)) {
         const [cxStr, cyStr] = key.split(',');
@@ -119,11 +89,16 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       }
     });
 
+    // Update stats if new chunks were generated
     if (newChunks.length > 0) {
       setWorldStats(prev => {
-        const updated = prev ? { ...prev } : { 
-          grass: 0, dirt: 0, water: 0, deep_water: 0, sand: 0, 
-          stone: 0, gravel: 0, forest: 0, dead_tree: 0, concrete: 0, asphalt: 0 
+        const updated = prev ? { ...prev } : {
+          grasslands: 0, plains: 0, forest: 0, mines: 0, river: 0,
+          ocean: 0, deep_ocean: 0, mountain: 0, caves: 0, mangrove: 0,
+          desert: 0, coral_reef: 0, wastelands: 0, savanna: 0, badlands: 0,
+          oasis: 0, wooded_badlands: 0, swamp: 0, snowy_plains: 0,
+          frozen_ocean: 0, deep_frozen_ocean: 0, taiga: 0, snowy_taiga: 0,
+          tundra: 0, jungle: 0, ashlands: 0, molten_wastes: 0
         };
         newChunks.forEach(chunk => {
           chunk.tiles.forEach(row => {
@@ -134,39 +109,24 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         });
         return updated;
       });
-      needsRenderRef.current = true;
     }
 
-    const maxDist = viewDistance + 5;
+    // Clean up far away chunks
     const toDelete: string[] = [];
-
     chunks.forEach((_, key) => {
       if (!visibleKeys.has(key)) {
         const [cxStr, cyStr] = key.split(',');
         const cx = parseInt(cxStr!, 10);
         const cy = parseInt(cyStr!, 10);
         
-        const minVisibleCx = Math.floor(-cameraOffset.x / chunkPixelSize) - viewDistance;
-        const minVisibleCy = Math.floor(-cameraOffset.y / chunkPixelSize) - viewDistance;
-        const maxVisibleCx = Math.floor((canvasSizeRef.current.width - cameraOffset.x) / chunkPixelSize) + viewDistance;
-        const maxVisibleCy = Math.floor((canvasSizeRef.current.height - cameraOffset.y) / chunkPixelSize) + viewDistance;
-        
-        const distX = Math.max(0, minVisibleCx - cx, cx - maxVisibleCx);
-        const distY = Math.max(0, minVisibleCy - cy, cy - maxVisibleCy);
-        
-        if (Math.max(distX, distY) > maxDist) {
+        if (optimizer.shouldUnloadChunk(cx, cy, bounds, 5)) {
           toDelete.push(key);
         }
       }
     });
 
-    if (toDelete.length > 0) {
-      toDelete.forEach(key => chunks.delete(key));
-      needsRenderRef.current = true;
-    }
-
-    visibleChunksRef.current = visibleKeys;
-  }, [cameraOffset, calculateVisibleChunks, chunkPixelSize, viewDistance]);
+    toDelete.forEach(key => chunks.delete(key));
+  }, [camera]);
 
   const scheduleChunkLoad = useCallback(() => {
     if (loadTimeoutRef.current !== null) {
@@ -178,164 +138,24 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     }, 50);
   }, [loadVisibleChunks]);
 
-  /**
-   * Get color for a block with variation
-   */
-  const getBlockColor = useCallback((block: Block, tileVariant: number): string => {
-    const colors = TILE_COLORS[block.type];
-    const baseColor = colors[tileVariant % colors.length];
-    
-    if (!baseColor) return '#000000';
-    
-    // Add subtle variation based on block position
-    const hash = (block.x * 73856093) ^ (block.y * 19349663);
-    const variation = ((hash & 0xff) / 255) * 0.08 - 0.04; // ±4% brightness
-    
-    // Parse color and apply variation
-    const hex = baseColor.replace('#', '');
-    const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) * (1 + variation)));
-    const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) * (1 + variation)));
-    const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) * (1 + variation)));
-    
-    return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
-  }, []);
-
-  /**
-   * Enhanced pixel art rendering with 16x16 block system
-   */
-  const renderWorld = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d', { alpha: false, desynchronized: true });
-    if (!canvas || !ctx) return;
-
-    const offsetChanged = lastRenderOffset.current.x !== cameraOffset.x || 
-                          lastRenderOffset.current.y !== cameraOffset.y;
-    
-    if (!needsRenderRef.current && !offsetChanged) return;
-
-    lastRenderOffset.current = { x: cameraOffset.x, y: cameraOffset.y };
-    needsRenderRef.current = false;
-
-    // Clear with dark background
-    ctx.fillStyle = '#1a1d1e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const chunks = chunksRef.current;
-    if (chunks.size === 0) return;
-
-    const { width, height } = canvas;
-
-    // Disable image smoothing for crisp pixels
-    ctx.imageSmoothingEnabled = false;
-
-    // Render chunks with 16x16 block-based tiles
-    chunks.forEach((chunk) => {
-      const chunkScreenX = chunk.x * chunkPixelSize + cameraOffset.x;
-      const chunkScreenY = chunk.y * chunkPixelSize + cameraOffset.y;
-
-      if (
-        chunkScreenX + chunkPixelSize < 0 ||
-        chunkScreenX > width ||
-        chunkScreenY + chunkPixelSize < 0 ||
-        chunkScreenY > height
-      ) {
-        return;
-      }
-
-      // Render tiles with their 16x16 block grids
-      for (let y = 0; y < chunkSize; y++) {
-        const row = chunk.tiles[y];
-        if (!row) continue;
-        
-        const tileScreenY = chunkScreenY + y * tileSize;
-        if (tileScreenY + tileSize < 0 || tileScreenY > height) continue;
-        
-        for (let x = 0; x < chunkSize; x++) {
-          const tile = row[x];
-          if (!tile) continue;
-          
-          const tileScreenX = chunkScreenX + x * tileSize;
-          if (tileScreenX + tileSize < 0 || tileScreenX > width) continue;
-
-          const tileVariant = tile.variant ?? 0;
-
-          // Render each block within the tile (16x16 grid)
-          for (let by = 0; by < blocksPerTile; by++) {
-            const blockRow = tile.blocks[by];
-            if (!blockRow) continue;
-            
-            for (let bx = 0; bx < blocksPerTile; bx++) {
-              const block = blockRow[bx];
-              if (!block) continue;
-              
-              const blockScreenX = tileScreenX + bx * blockSize;
-              const blockScreenY = tileScreenY + by * blockSize;
-              
-              // Skip if block is off-screen
-              if (blockScreenX + blockSize < 0 || blockScreenX > width ||
-                  blockScreenY + blockSize < 0 || blockScreenY > height) {
-                continue;
-              }
-              
-              // Get block color with variation
-              const blockColor = getBlockColor(block, tileVariant);
-              ctx.fillStyle = blockColor;
-              ctx.fillRect(blockScreenX, blockScreenY, blockSize, blockSize);
-              
-              // Add subtle pixel detail for certain biomes
-              if (block.blendFactor !== undefined && block.blendFactor < 0.5) {
-                // Blocks near biome boundaries get a subtle highlight
-                const hash = (block.x * 73856093) ^ (block.y * 19349663);
-                if ((hash & 0xff) < 40) {
-                  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
-                  ctx.fillRect(blockScreenX, blockScreenY, blockSize, blockSize);
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Subtle grid for chunk boundaries (optional - can be removed)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.01)';
-    ctx.lineWidth = 1;
-    
-    const chunkGridSize = chunkPixelSize;
-    const offsetX = ((cameraOffset.x % chunkGridSize) + chunkGridSize) % chunkGridSize;
-    const offsetY = ((cameraOffset.y % chunkGridSize) + chunkGridSize) % chunkGridSize;
-
-    ctx.beginPath();
-    for (let x = offsetX; x < width; x += chunkGridSize) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-    }
-    for (let y = offsetY; y < height; y += chunkGridSize) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-    }
-    ctx.stroke();
-
-  }, [cameraOffset, chunkPixelSize, chunkSize, tileSize, blockSize, blocksPerTile, getBlockColor]);
-
-  // Initialize
+  // Initialize world
   useEffect(() => {
     setIsInitializing(true);
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
 
     const generator = new WorldGenerator(worldData, DEFAULT_WORLD_CONFIG);
     generatorRef.current = generator;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    canvasSizeRef.current = { width: canvas.width, height: canvas.height };
+    // Set initial canvas size
+    canvasSizeRef.current = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
 
-    // Center camera
-    setCameraOffset({ 
-      x: Math.floor(canvas.width / 2), 
-      y: Math.floor(canvas.height / 2) 
+    // Center camera on spawn
+    setCamera({
+      x: Math.floor(window.innerWidth / 2),
+      y: Math.floor(window.innerHeight / 2),
+      zoom: 1
     });
 
     setTimeout(() => setIsInitializing(false), 400);
@@ -349,129 +169,52 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         clearTimeout(loadTimeoutRef.current);
       }
     };
-  }, [worldData]);
+  }, [worldData, setCamera]);
 
+  // Load initial chunks
   useEffect(() => {
     if (!isInitializing) {
       loadVisibleChunks();
     }
   }, [isInitializing, loadVisibleChunks]);
 
-  useEffect(() => {
-    if (isInitializing) return;
-
-    let rafId: number;
-    const render = () => {
-      renderWorld();
-      rafId = requestAnimationFrame(render);
-    };
-
-    rafId = requestAnimationFrame(render);
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [isInitializing, renderWorld]);
-
+  // Schedule chunk loading when camera moves
   useEffect(() => {
     if (isInitializing) return;
     scheduleChunkLoad();
-  }, [cameraOffset, isInitializing, scheduleChunkLoad]);
+  }, [camera, isInitializing, scheduleChunkLoad]);
 
-  useEffect(() => {
-    let resizeTimeout: number;
-    
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = window.setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-          canvasSizeRef.current = { width: canvas.width, height: canvas.height };
-          needsRenderRef.current = true;
-          loadVisibleChunks();
-        }
-      }, 150);
-    };
+  // Handle drag events
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      if (touch) startDrag(touch.clientX, touch.clientY);
+    } else {
+      startDrag(e.clientX, e.clientY);
+    }
+  }, [startDrag]);
 
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimeout);
-    };
-  }, [loadVisibleChunks]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y };
-  }, [cameraOffset]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setCameraOffset({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y
-    });
-  }, [isDragging]);
-
-  const handleMouseUp = useCallback(() => setIsDragging(false), []);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    setIsDragging(true);
-    dragStartRef.current = { x: touch.clientX - cameraOffset.x, y: touch.clientY - cameraOffset.y };
-  }, [cameraOffset]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-    e.preventDefault();
-    setCameraOffset({
-      x: touch.clientX - dragStartRef.current.x,
-      y: touch.clientY - dragStartRef.current.y
-    });
-  }, [isDragging]);
-
-  const handleTouchEnd = useCallback(() => setIsDragging(false), []);
-
-  const getPercentage = useCallback((count: number): string => {
-    if (!worldStats) return '0.0';
-    const total = Object.values(worldStats).reduce((sum, val) => sum + val, 0);
-    return total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
-  }, [worldStats]);
+  const handleDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      if (touch) updateDrag(touch.clientX, touch.clientY);
+    } else {
+      updateDrag(e.clientX, e.clientY);
+    }
+  }, [updateDrag]);
 
   const totalChunks = chunksRef.current.size;
-  const totalTiles = worldStats ? Object.values(worldStats).reduce((sum, val) => sum + val, 0) : 0;
-  const totalBlocks = totalTiles * blocksPerTile * blocksPerTile;
-
-  // Group terrain types for display
-  const terrainGroups = useMemo(() => {
-    if (!worldStats) return null;
-    
-    return {
-      vegetation: worldStats.grass + worldStats.forest,
-      wasteland: worldStats.dirt + worldStats.sand + worldStats.gravel + worldStats.dead_tree,
-      water: worldStats.water + worldStats.deep_water,
-      urban: worldStats.concrete + worldStats.asphalt,
-      rocky: worldStats.stone
-    };
-  }, [worldStats]);
 
   return (
     <div className="game-world">
-      <canvas
-        ref={canvasRef}
-        className={`world-canvas ${isDragging ? 'dragging' : ''}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+      <WorldCanvas
+        chunks={chunksRef.current}
+        camera={camera}
+        config={DEFAULT_WORLD_CONFIG}
+        isDragging={isDragging}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={endDrag}
       />
 
       {isInitializing && (
@@ -480,72 +223,28 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
             <div className="loading-spinner" />
             <h2 className="loading-title">GENERATING WORLD</h2>
             <p className="loading-subtitle">Seed: {worldData.seed}</p>
-            <p className="loading-detail">Procedural terrain generation with block-based biomes...</p>
+            <p className="loading-detail">27 unique biomes • Infinite procedural terrain...</p>
           </div>
         </div>
       )}
 
       {!isInitializing && (
         <>
-          <div className="world-header">
-            <div className="header-left">
-              <button className="icon-button back-button" onClick={onBackToMenu}>
-                <span className="button-icon">←</span>
-              </button>
-              <div className="world-info">
-                <h1 className="world-name">{worldData.name}</h1>
-                <div className="world-meta">
-                  <span className="meta-item">Seed: {worldData.seed}</span>
-                  <span className="meta-divider">•</span>
-                  <span className="meta-item">{worldData.difficulty.toUpperCase()}</span>
-                  <span className="meta-divider">•</span>
-                  <span className="meta-item">{totalChunks} Chunks</span>
-                  <span className="meta-divider">•</span>
-                  <span className="meta-item">{totalBlocks.toLocaleString()} Blocks</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <WorldHUD
+            worldData={worldData}
+            playerCoords={playerCoords}
+            onBackToMenu={onBackToMenu}
+          />
 
-          {terrainGroups && (
-            <div className="stats-panel">
-              <div className="stats-header">
-                <span className="stats-icon">🗺️</span>
-                <span className="stats-title">TERRAIN ANALYSIS</span>
-              </div>
-              <div className="stats-grid">
-                <div className="stat-item vegetation">
-                  <div className="stat-bar" style={{ width: `${getPercentage(terrainGroups.vegetation)}%` }} />
-                  <span className="stat-label">Overgrown</span>
-                  <span className="stat-value">{getPercentage(terrainGroups.vegetation)}%</span>
-                </div>
-                <div className="stat-item wasteland">
-                  <div className="stat-bar" style={{ width: `${getPercentage(terrainGroups.wasteland)}%` }} />
-                  <span className="stat-label">Wasteland</span>
-                  <span className="stat-value">{getPercentage(terrainGroups.wasteland)}%</span>
-                </div>
-                <div className="stat-item water">
-                  <div className="stat-bar" style={{ width: `${getPercentage(terrainGroups.water)}%` }} />
-                  <span className="stat-label">Contaminated</span>
-                  <span className="stat-value">{getPercentage(terrainGroups.water)}%</span>
-                </div>
-                <div className="stat-item urban">
-                  <div className="stat-bar" style={{ width: `${getPercentage(terrainGroups.urban)}%` }} />
-                  <span className="stat-label">Ruins</span>
-                  <span className="stat-value">{getPercentage(terrainGroups.urban)}%</span>
-                </div>
-                <div className="stat-item rocky">
-                  <div className="stat-bar" style={{ width: `${getPercentage(terrainGroups.rocky)}%` }} />
-                  <span className="stat-label">Rocky</span>
-                  <span className="stat-value">{getPercentage(terrainGroups.rocky)}%</span>
-                </div>
-              </div>
-            </div>
-          )}
+          <WorldStats
+            worldStats={worldStats}
+            totalChunks={totalChunks}
+            blocksPerTile={blocksPerTile}
+          />
 
           <div className="controls-hint">
             <span className="hint-icon">⚠️</span>
-            <span className="hint-text">Drag to explore • 16x16 block-based terrain</span>
+            <span className="hint-text">Drag to explore • Green marker = spawn (0,0)</span>
           </div>
         </>
       )}

@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 // Re-export all types for centralized imports
 export type { 
   TileType, 
@@ -8,13 +10,23 @@ export type {
   DifficultySettings,
   Chunk,
   ChunkKey,
-  Block
+  Block,
+  BiomeRarity
 } from './world.types';
 
 export { 
   DIFFICULTY_SETTINGS, 
-  DEFAULT_WORLD_CONFIG 
+  DEFAULT_WORLD_CONFIG,
+  BIOME_RARITY
 } from './world.types';
+
+// Rendering types
+export type {
+  Camera,
+  ViewportBounds,
+  ChunkTexture,
+  RenderStats
+} from './rendering.types';
 
 // Additional types for better type safety
 export interface GameState {

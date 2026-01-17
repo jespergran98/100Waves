@@ -644,3 +644,55 @@
     0 0 0 3px rgba(0, 255, 128, 0.4),
     0 4px 16px rgba(0, 255, 128, 0.25);
 }
+
+/* Rare biome rarity indicators */
+.stat-item.legendary {
+  border-left: 3px solid #ff6b35;
+}
+
+.stat-item.legendary .stat-bar {
+  background: linear-gradient(
+    to right,
+    rgba(255, 107, 53, 0.4),
+    rgba(255, 107, 53, 0.1)
+  );
+}
+
+.stat-item.epic {
+  border-left: 3px solid #9b59b6;
+}
+
+.stat-item.epic .stat-bar {
+  background: linear-gradient(
+    to right,
+    rgba(155, 89, 182, 0.4),
+    rgba(155, 89, 182, 0.1)
+  );
+}
+
+.stat-item.rare {
+  border-left: 3px solid #3498db;
+}
+
+.stat-item.rare .stat-bar {
+  background: linear-gradient(
+    to right,
+    rgba(52, 152, 219, 0.4),
+    rgba(52, 152, 219, 0.1)
+  );
+}
+
+.stat-item.info {
+  border-left: 3px solid rgba(0, 255, 128, 0.5);
+}
+
+.stats-divider {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0, 255, 128, 0.2),
+    transparent
+  );
+  margin: var(--space-3) 0;
+}
