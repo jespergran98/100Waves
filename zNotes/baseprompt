@@ -10,9 +10,15 @@ Current project structure:
 │
 ├── src/
 │   ├── components/
-│   │   └── MainMenu/
-│   │       ├── MainMenu.css/
-│   │       └── MainMenu.tsx/
+│   │   ├── MainMenu/
+│   │   │   ├── index.ts/
+│   │   │   ├── MainMenu.css/
+│   │   │   └── MainMenu.tsx/
+│   │   │
+│   │   └── WorldCreation/
+│   │       ├── index.ts/
+│   │       ├── WorldCreation.css/
+│   │       └── WorldCreation.tsx/
 │   │
 │   ├── App.jsx
 │   ├── global.css

@@ -111,9 +111,13 @@ Current project structure:
 │
 ├── src/
 │   ├── components/
+│   │   ├── MainMenu/
+│   │   │   ├── MainMenu.css/
+│   │   │   └── MainMenu.tsx/
+│   │   │
 │   │   └── MainMenu/
-│   │       ├── MainMenu.css/
-│   │       └── MainMenu.tsx/
+│   │   │   ├── MainMenu.css/
+│   │   │   └── MainMenu.tsx/
 │   │
 │   ├── App.jsx
 │   ├── global.css
@@ -134,3 +138,42 @@ Follow this structure and deliver clean, production-ready code using modern Reac
 - Seed input field (if not provided, generate a random seed)
 - Difficulty selection (Easy, Medium, Hard)
 - A "Create World" button at the bottom
+
+---
+
+I am creating a professional top-down zombie survival game using React, TypeScript, and Vite with modern best practices. The project follows clean folder structure standards. Use CSS variables from global.css for all styling. The website must be fully responsive with a clean, modern design and simple logic. Always provide complete file contents for any modified or new files. The design must be in the highest tier of web developement, while keeping the code clean, streamlined, structured and perfect.
+
+Current project structure:
+
+```
+100Waves/
+├── node_modules/
+├── public/
+│   └── assets/
+│
+├── src/
+│   ├── components/
+│   │   ├── MainMenu/
+│   │   │   ├── index.ts/
+│   │   │   ├── MainMenu.css/
+│   │   │   └── MainMenu.tsx/
+│   │   │
+│   │   └── WorldCreation/
+│   │       ├── index.ts/
+│   │       ├── WorldCreation.css/
+│   │       └── WorldCreation.tsx/
+│   │
+│   ├── App.jsx
+│   ├── global.css
+│   └── main.jsx
+│
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+└── vite.config.ts
+```
+
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while adding the logic that creates the world based on user input from the WorldCreation component. The map consists of a grid of tiles, each tile can be either land, water or stones. The world generation should use the provided seed to ensure consistent world creation for the same seed. Implement a simple algorithm that uses the seed to randomly assign land and water tiles based on the selected difficulty (e.g., Easy: 80% land, Medium: 70% land, Hard: 60% land). Provide the complete updated WorldCreation.tsx and WorldCreation.css files with the necessary logic and styling. Follow the best possible react standards and typescript practices (use types, interfaces, and hooks, contexts where appropriate and provide the perfect file structure).
