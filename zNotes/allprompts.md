@@ -308,3 +308,59 @@ Current project structure:
 ```
 
 Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while ensuring high performance and responsiveness, and perfect chunk rendering with simple, clean and well structured code. The chunks are not loading correctly at the moment. (Currently there are no player, but when dragging to explore the map, the map randomly disappears instead of correctly displaying the map when it's within the viewport). Ensure it is extremely clean, streamlined and perfectly generates without performance issues and with extremely clean and impressive code. Provide the updated code in the separate files.
+
+---
+
+I am creating a professional top-down zombie survival game using React, TypeScript, and Vite with modern best practices. The project follows clean folder structure standards. Use CSS variables from global.css for all styling. The website must be fully responsive with a clean, modern design and simple logic. Always provide complete file contents for any modified or new files. The design must be in the highest tier of web development, while keeping the code clean, streamlined, structured and perfect.
+
+Current project structure:
+
+```
+100Waves/
+├── node_modules/
+├── public/
+│   └── assets/
+│
+├── src/
+│   ├── components/
+│   │   ├── MainMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── MainMenu.css
+│   │   │   └── MainMenu.tsx
+│   │   │
+│   │   ├── WorldCreationMenu/
+│   │   │   ├── index.ts
+│   │   │   ├── WorldCreationMenu.css
+│   │   │   └── WorldCreationMenu.tsx
+│   │   │
+│   │   └── GameWorld/
+│   │       ├── index.ts
+│   │       ├── GameWorld.css
+│   │       └── GameWorld.tsx
+│   │
+│   ├── hooks/
+│   │   ├── useAudioFeedback.ts
+│   │   └── useParticles.ts
+│   │
+│   ├── types/
+│   │   ├── index.ts
+│   │   └── world.types.ts
+│   │
+│   ├── utils/
+│   │   ├── seededRandom.ts
+│   │   └── worldGenerator.ts
+│   │
+│   ├── App.tsx
+│   ├── global.css
+│   └── main.tsx
+│
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+└── vite.config.ts
+```
+
+Follow this structure and deliver clean, production-ready code using modern React, TypeScript, and Vite patterns. Maintain component-based architecture, and type safety throughout. Your task is to follow this context, respect the aesthetic, and deliver solutions that follow modern React, JavaScript, and Vite best practices while massively improving the map design and generation for my zombies survival game and make the map more zoomed in and detaiiled while sticking to the pixel design. Update the code and provide the updated code in separate files.

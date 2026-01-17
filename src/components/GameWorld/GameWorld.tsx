@@ -9,16 +9,25 @@ interface GameWorldProps {
   onBackToMenu: () => void;
 }
 
-// Tile color constants (avoid object recreation)
-const TILE_COLORS: Record<TileType, string> = {
-  water: '#1a4d5c',
-  sand: '#c2a66b',
-  land: '#2d4a2b',
-  stone: '#5a5a5a'
+// Vibrant, clean color palette - bright and saturated
+const TILE_COLORS: Record<TileType, string[]> = {
+  land: [
+    '#4a6b4a', '#4b6c4b', '#4c6d4c', '#4d6e4d',
+    '#4a6a4a', '#4b6b4b', '#4c6c4c', '#4d6d4d'
+  ],
+  water: [
+    '#2a5a6f', '#2b5b70', '#2c5c71', '#2d5d72',
+    '#2a5970', '#2b5a71', '#2c5b72', '#2d5c73'
+  ],
+  sand: [
+    '#8b7a5a', '#8c7b5b', '#8d7c5c', '#8e7d5d',
+    '#8b795a', '#8c7a5b', '#8d7b5c', '#8e7c5d'
+  ],
+  stone: [
+    '#6a6b6c', '#6b6c6d', '#6c6d6e', '#6d6e6f',
+    '#696a6b', '#6a6b6c', '#6b6c6d', '#6c6d6e'
+  ]
 };
-
-const BORDER_COLOR = 'rgba(0, 0, 0, 0.15)';
-const GRID_COLOR = 'rgba(255, 255, 255, 0.03)';
 
 const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,12 +47,11 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   // Memoized config values
   const { chunkSize, tileSize, viewDistance } = useMemo(() => DEFAULT_WORLD_CONFIG, []);
   const chunkPixelSize = useMemo(() => chunkSize * tileSize, [chunkSize, tileSize]);
-  const gridSize = useMemo(() => tileSize * 8, [tileSize]);
 
-  // Get chunk key (memoized inline)
+  // Get chunk key
   const getChunkKey = useCallback((cx: number, cy: number): string => `${cx},${cy}`, []);
 
-  // Optimized visible chunks calculation
+  // Calculate visible chunks
   const calculateVisibleChunks = useCallback((offsetX: number, offsetY: number, width: number, height: number): Set<string> => {
     const minChunkX = Math.floor(-offsetX / chunkPixelSize) - viewDistance;
     const minChunkY = Math.floor(-offsetY / chunkPixelSize) - viewDistance;
@@ -59,7 +67,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     return visible;
   }, [chunkPixelSize, viewDistance, getChunkKey]);
 
-  // Batch load visible chunks with intelligent caching
+  // Load visible chunks
   const loadVisibleChunks = useCallback(() => {
     const canvas = canvasRef.current;
     const generator = generatorRef.current;
@@ -72,7 +80,6 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       canvasSizeRef.current.height
     );
 
-    // Quick check: if same chunks are visible, skip
     if (visibleKeys.size === visibleChunksRef.current.size) {
       let allSame = true;
       for (const key of visibleKeys) {
@@ -87,7 +94,6 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const chunks = chunksRef.current;
     const newChunks: Chunk[] = [];
 
-    // Generate missing chunks in batch
     visibleKeys.forEach(key => {
       if (!chunks.has(key)) {
         const [cxStr, cyStr] = key.split(',');
@@ -100,9 +106,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       }
     });
 
-    // Update stats only if new chunks were added
     if (newChunks.length > 0) {
-      // Incremental stats update instead of full recalculation
       setWorldStats(prev => {
         const updated = prev ? { ...prev } : { land: 0, water: 0, stone: 0, sand: 0 };
         newChunks.forEach(chunk => {
@@ -117,7 +121,6 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       needsRenderRef.current = true;
     }
 
-    // Efficient cleanup: remove chunks outside max range
     const maxDist = viewDistance + 4;
     const toDelete: string[] = [];
 
@@ -127,7 +130,6 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         const cx = parseInt(cxStr!, 10);
         const cy = parseInt(cyStr!, 10);
         
-        // Check distance to nearest visible chunk edge
         const minVisibleCx = Math.floor(-cameraOffset.x / chunkPixelSize) - viewDistance;
         const minVisibleCy = Math.floor(-cameraOffset.y / chunkPixelSize) - viewDistance;
         const maxVisibleCx = Math.floor((canvasSizeRef.current.width - cameraOffset.x) / chunkPixelSize) + viewDistance;
@@ -161,13 +163,18 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     }, 50);
   }, [loadVisibleChunks]);
 
-  // Ultra-optimized render function
+  // Seeded random for consistent tile variations
+  const getTileVariation = useCallback((x: number, y: number, type: TileType): number => {
+    const hash = ((x * 73856093) ^ (y * 19349663)) & 0x7fffffff;
+    return hash % TILE_COLORS[type].length;
+  }, []);
+
+  // Clean, vibrant render - no imperfections
   const renderWorld = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d', { alpha: false });
     if (!canvas || !ctx) return;
 
-    // Check if render is needed
     const offsetChanged = lastRenderOffset.current.x !== cameraOffset.x || 
                           lastRenderOffset.current.y !== cameraOffset.y;
     
@@ -176,8 +183,8 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     lastRenderOffset.current = { x: cameraOffset.x, y: cameraOffset.y };
     needsRenderRef.current = false;
 
-    // Clear canvas
-    ctx.fillStyle = '#0a0a0a';
+    // Clear with clean background
+    ctx.fillStyle = '#2a2e2f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const chunks = chunksRef.current;
@@ -185,12 +192,11 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
     const { width, height } = canvas;
 
-    // Render chunks with aggressive culling
+    // Render chunks with clean blocks
     chunks.forEach((chunk) => {
       const chunkScreenX = chunk.x * chunkPixelSize + cameraOffset.x;
       const chunkScreenY = chunk.y * chunkPixelSize + cameraOffset.y;
 
-      // Chunk-level culling
       if (
         chunkScreenX + chunkPixelSize < 0 ||
         chunkScreenX > width ||
@@ -200,14 +206,12 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         return;
       }
 
-      // Batch tile rendering for this chunk
+      // Render clean tiles
       for (let y = 0; y < chunkSize; y++) {
         const row = chunk.tiles[y];
         if (!row) continue;
         
         const screenY = chunkScreenY + y * tileSize;
-        
-        // Row-level culling
         if (screenY + tileSize < 0 || screenY > height) continue;
         
         for (let x = 0; x < chunkSize; x++) {
@@ -215,42 +219,52 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
           if (!tile) continue;
           
           const screenX = chunkScreenX + x * tileSize;
-
-          // Tile-level culling
           if (screenX + tileSize < 0 || screenX > width) continue;
 
-          // Draw tile (batched by color would be even better, but adds complexity)
-          ctx.fillStyle = TILE_COLORS[tile.type];
-          ctx.fillRect(screenX, screenY, tileSize, tileSize);
-
-          // Draw border
-          ctx.strokeStyle = BORDER_COLOR;
-          ctx.strokeRect(screenX, screenY, tileSize, tileSize);
+          // Get color variation for this tile
+          const colorIndex = getTileVariation(tile.x, tile.y, tile.type);
+          const tileColor = TILE_COLORS[tile.type][colorIndex];
+          if (tileColor) {
+            ctx.fillStyle = tileColor;
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+          }
         }
       }
     });
 
-    // Draw grid overlay
-    ctx.strokeStyle = GRID_COLOR;
+    // Draw chunk grid (very subtle)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
     ctx.lineWidth = 1;
     
-    const offsetX = ((cameraOffset.x % gridSize) + gridSize) % gridSize;
-    const offsetY = ((cameraOffset.y % gridSize) + gridSize) % gridSize;
+    const chunkGridSize = chunkPixelSize;
+    const offsetX = ((cameraOffset.x % chunkGridSize) + chunkGridSize) % chunkGridSize;
+    const offsetY = ((cameraOffset.y % chunkGridSize) + chunkGridSize) % chunkGridSize;
 
     ctx.beginPath();
-    for (let x = offsetX; x < width; x += gridSize) {
+    for (let x = offsetX; x < width; x += chunkGridSize) {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
     }
-    for (let y = offsetY; y < height; y += gridSize) {
+    for (let y = offsetY; y < height; y += chunkGridSize) {
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
     }
     ctx.stroke();
 
-  }, [cameraOffset, chunkPixelSize, chunkSize, tileSize, gridSize]);
+    // Very subtle vignette
+    const gradient = ctx.createRadialGradient(
+      width / 2, height / 2, 0,
+      width / 2, height / 2, Math.max(width, height) * 0.8
+    );
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.9, 'rgba(0, 0, 0, 0.02)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
 
-  // Initialize world generator
+  }, [cameraOffset, chunkPixelSize, chunkSize, tileSize, getTileVariation]);
+
+  // Initialize
   useEffect(() => {
     setIsInitializing(true);
     
@@ -260,12 +274,10 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     const generator = new WorldGenerator(worldData, DEFAULT_WORLD_CONFIG);
     generatorRef.current = generator;
 
-    // Set canvas size
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     canvasSizeRef.current = { width: canvas.width, height: canvas.height };
 
-    // Center camera
     setCameraOffset({ 
       x: Math.floor(canvas.width / 2), 
       y: Math.floor(canvas.height / 2) 
@@ -291,7 +303,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     }
   }, [isInitializing, loadVisibleChunks]);
 
-  // Optimized render loop - only render when needed
+  // Render loop
   useEffect(() => {
     if (isInitializing) return;
 
@@ -308,13 +320,13 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     };
   }, [isInitializing, renderWorld]);
 
-  // Debounced chunk loading on camera change
+  // Chunk loading on camera change
   useEffect(() => {
     if (isInitializing) return;
     scheduleChunkLoad();
   }, [cameraOffset, isInitializing, scheduleChunkLoad]);
 
-  // Handle window resize efficiently
+  // Window resize
   useEffect(() => {
     let resizeTimeout: number;
     
@@ -376,7 +388,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
 
   const handleTouchEnd = useCallback(() => setIsDragging(false), []);
 
-  // Memoized percentage calculation
+  // Percentage calculation
   const getPercentage = useCallback((count: number): string => {
     if (!worldStats) return '0.0';
     const total = worldStats.land + worldStats.water + worldStats.sand + worldStats.stone;
@@ -432,28 +444,28 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
           {worldStats && (
             <div className="stats-panel">
               <div className="stats-header">
-                <span className="stats-icon">📊</span>
+                <span className="stats-icon">🗺️</span>
                 <span className="stats-title">TERRAIN</span>
               </div>
               <div className="stats-grid">
                 <div className="stat-item land">
                   <div className="stat-bar" style={{ width: `${getPercentage(worldStats.land)}%` }} />
-                  <span className="stat-label">Land</span>
+                  <span className="stat-label">Overgrown</span>
                   <span className="stat-value">{getPercentage(worldStats.land)}%</span>
                 </div>
                 <div className="stat-item water">
                   <div className="stat-bar" style={{ width: `${getPercentage(worldStats.water)}%` }} />
-                  <span className="stat-label">Water</span>
+                  <span className="stat-label">Contaminated</span>
                   <span className="stat-value">{getPercentage(worldStats.water)}%</span>
                 </div>
                 <div className="stat-item sand">
                   <div className="stat-bar" style={{ width: `${getPercentage(worldStats.sand)}%` }} />
-                  <span className="stat-label">Sand</span>
+                  <span className="stat-label">Wasteland</span>
                   <span className="stat-value">{getPercentage(worldStats.sand)}%</span>
                 </div>
                 <div className="stat-item stone">
                   <div className="stat-bar" style={{ width: `${getPercentage(worldStats.stone)}%` }} />
-                  <span className="stat-label">Stone</span>
+                  <span className="stat-label">Ruins</span>
                   <span className="stat-value">{getPercentage(worldStats.stone)}%</span>
                 </div>
               </div>
@@ -461,8 +473,8 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
           )}
 
           <div className="controls-hint">
-            <span className="hint-icon">🖱️</span>
-            <span className="hint-text">Click and drag to explore • World expands as you move</span>
+            <span className="hint-icon">⚠️</span>
+            <span className="hint-text">Explore the wasteland • Beware of the infected</span>
           </div>
         </>
       )}
