@@ -25,6 +25,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0 });
   const loadTimeoutRef = useRef<number | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
+  const isLoadingRef = useRef(false);
 
   const { chunkSize, tileSize, blockSize, blocksPerTile } = DEFAULT_WORLD_CONFIG;
   const chunkPixelSize = useMemo(() => chunkSize * tileSize, [chunkSize, tileSize]);
@@ -61,9 +62,13 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
   }, [camera, screenToWorld]);
 
   const loadVisibleChunks = useCallback(() => {
+    if (isLoadingRef.current) return;
+    
     const generator = generatorRef.current;
     const optimizer = optimizerRef.current;
     if (!generator || !optimizer) return;
+
+    isLoadingRef.current = true;
 
     const bounds = optimizer.calculateViewportBounds(
       camera.x,
@@ -72,7 +77,15 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       canvasSizeRef.current.height
     );
 
-    const visibleKeys = optimizer.getVisibleChunks(bounds);
+    // Extend bounds slightly to preload chunks before they're visible
+    const extendedBounds = {
+      minChunkX: bounds.minChunkX - 1,
+      minChunkY: bounds.minChunkY - 1,
+      maxChunkX: bounds.maxChunkX + 1,
+      maxChunkY: bounds.maxChunkY + 1
+    };
+
+    const visibleKeys = optimizer.getVisibleChunks(extendedBounds);
     const chunks = chunksRef.current;
     const newChunks: Chunk[] = [];
 
@@ -119,13 +132,15 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
         const cx = parseInt(cxStr!, 10);
         const cy = parseInt(cyStr!, 10);
         
-        if (optimizer.shouldUnloadChunk(cx, cy, bounds, 5)) {
+        if (optimizer.shouldUnloadChunk(cx, cy, extendedBounds, 4)) {
           toDelete.push(key);
         }
       }
     });
 
     toDelete.forEach(key => chunks.delete(key));
+    
+    isLoadingRef.current = false;
   }, [camera]);
 
   const scheduleChunkLoad = useCallback(() => {
@@ -135,7 +150,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
     loadTimeoutRef.current = window.setTimeout(() => {
       loadVisibleChunks();
       loadTimeoutRef.current = null;
-    }, 50);
+    }, 16); // Reduced from 50ms to 16ms (one frame)
   }, [loadVisibleChunks]);
 
   // Initialize world
@@ -158,7 +173,7 @@ const GameWorld = ({ worldData, onBackToMenu }: GameWorldProps) => {
       zoom: 1
     });
 
-    setTimeout(() => setIsInitializing(false), 400);
+    setTimeout(() => setIsInitializing(false), 200);
 
     return () => {
       if (generatorRef.current) {

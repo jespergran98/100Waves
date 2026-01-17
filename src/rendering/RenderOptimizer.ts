@@ -63,7 +63,7 @@ export class RenderOptimizer {
     chunkX: number,
     chunkY: number,
     bounds: ViewportBounds,
-    maxDistance: number = 5
+    maxDistance: number = 3
   ): boolean {
     const distX = Math.max(0, bounds.minChunkX - chunkX, chunkX - bounds.maxChunkX);
     const distY = Math.max(0, bounds.minChunkY - chunkY, chunkY - bounds.maxChunkY);

@@ -1,3 +1,5 @@
+// src/types/world.types.ts
+
 // World generation and tile types with enhanced biome diversity
 
 export type TileType = 
@@ -117,11 +119,11 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
-  chunkSize: 16,
-  tileSize: 64,      // Increased from 32 for more zoom
-  blockSize: 4,       // Increased from 2 for more zoom
-  blocksPerTile: 16,
-  viewDistance: 2,    // Reduced from 3 since we're more zoomed in
+  chunkSize: 12,       // Reduced from 16 for faster generation
+  tileSize: 128,       // Increased from 64 for much more zoom
+  blockSize: 8,        // Increased from 4 for much more zoom (blocks are now 8x8 pixels)
+  blocksPerTile: 16,   // Same 16x16 blocks per tile
+  viewDistance: 1,     // Reduced from 2 - only need 1 extra chunk around view
   spawnX: 0,
   spawnY: 0
 };

@@ -7,7 +7,7 @@ export class TextureCache {
   private maxSize: number;
   private accessOrder: string[] = [];
 
-  constructor(maxSize: number = 100) {
+  constructor(maxSize: number = 150) { // Increased from 100
     this.maxSize = maxSize;
   }
 
@@ -76,9 +76,11 @@ export class TextureCache {
 
   cleanUp(keysToKeep: Set<string>): void {
     const keysToDelete: string[] = [];
+    const now = Date.now();
+    const maxAge = 30000; // 30 seconds
     
-    this.cache.forEach((_, key) => {
-      if (!keysToKeep.has(key)) {
+    this.cache.forEach((texture, key) => {
+      if (!keysToKeep.has(key) && (now - texture.lastAccessed) > maxAge) {
         keysToDelete.push(key);
       }
     });
